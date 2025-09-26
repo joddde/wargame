@@ -2,10 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Wargame — Launch</title>
   <style>
     :root {
@@ -14,19 +11,16 @@
       --text: #e7f0ff;
       --accent: #43e5ff;
       --muted: #7f8ca3;
-      --interval-ms: 250; /* 0.25 seconds per count */
+      --interval-ms: 250;
     }
 
     * { box-sizing: border-box; }
-    html, body { height: 100%; }
+    html, body { height: 100%; margin: 0; }
     body {
-      margin: 0;
       background: radial-gradient(1000px 800px at 50% 20%, #101629 0, var(--bg) 50%, #04070f 100%);
       color: var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
-      line-height: 1.4;
       display: flex;
-      align-items: stretch;
       justify-content: center;
     }
 
@@ -38,36 +32,19 @@
       gap: 16px;
     }
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+    header { display: flex; justify-content: space-between; align-items: center; }
+    h1 { margin: 0; font-size: clamp(18px, 2.8vw, 28px); color: #d9e6ff; }
+    .hint { color: var(--muted); font-size: 0.95rem; }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(18px, 2.8vw, 28px);
-      letter-spacing: 0.02em;
-      color: #d9e6ff;
-    }
-
-    .hint {
-      color: var(--muted);
-      font-size: 0.95rem;
-    }
-
-    /* Countdown row (horizontal) */
     #countdown {
-      display: none; /* shown when running */
+      display: none;
       align-items: center;
       justify-content: center;
       gap: clamp(12px, 2.4vw, 28px);
       padding: 14px 18px;
       border-radius: 12px;
       background: linear-gradient(180deg, #0d1531 0%, #0a1128 100%);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.05),
-        0 10px 30px rgba(0,0,0,0.4);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.4);
     }
 
     #countdown .digit,
@@ -82,10 +59,8 @@
       color: #98a7c4;
       font-weight: 800;
       font-size: clamp(22px, 5.8vw, 40px);
-      letter-spacing: 0.02em;
-      user-select: none;
-      transition: transform 120ms ease, color 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 120ms ease;
       opacity: 0.35;
+      transition: transform 120ms ease, color 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 120ms ease;
     }
 
     #countdown .digit.active {
@@ -93,9 +68,7 @@
       background: #0c2140;
       transform: scale(1.18);
       opacity: 1;
-      box-shadow:
-        0 0 0 2px rgba(67,229,255,0.18),
-        0 0 26px rgba(67,229,255,0.35);
+      box-shadow: 0 0 0 2px rgba(67,229,255,0.18), 0 0 26px rgba(67,229,255,0.35);
       text-shadow: 0 0 12px rgba(67,229,255,0.6);
     }
 
@@ -105,14 +78,10 @@
       font-weight: 900;
       color: #0b152e;
       background: linear-gradient(180deg, #6bf0ff 0%, #44e5ff 100%);
-      box-shadow:
-        0 0 0 2px rgba(67,229,255,0.22),
-        0 0 30px rgba(67,229,255,0.5),
-        inset 0 -6px 18px rgba(0,0,0,0.15);
+      box-shadow: 0 0 0 2px rgba(67,229,255,0.22), 0 0 30px rgba(67,229,255,0.5), inset 0 -6px 18px rgba(0,0,0,0.15);
       opacity: 1;
     }
 
-    /* Game container (replace with your actual game UI/canvas) */
     #game {
       display: grid;
       grid-template-rows: auto 1fr;
@@ -120,38 +89,24 @@
       padding: 12px;
       border-radius: 14px;
       background: linear-gradient(180deg, #0e1634 0%, #0a1127 100%);
-      box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,0.04),
-        0 18px 40px rgba(0,0,0,0.45);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 18px 40px rgba(0,0,0,0.45);
       min-height: 55vh;
     }
 
-    #game-toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
+    #game-toolbar { display: flex; justify-content: space-between; gap: 8px; }
     .btn {
-      appearance: none;
       border: 0;
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 14px 18px;
       font-weight: 700;
+      font-size: 1rem;
       color: #0c162f;
       background: #d5e8ff;
       cursor: pointer;
-      transition: transform 120ms ease, filter 120ms ease;
     }
-    .btn:hover { filter: brightness(1.05); }
-    .btn:active { transform: translateY(1px); }
     .btn.primary {
-      color: #071021;
       background: linear-gradient(180deg, #6bf0ff 0%, #44e5ff 100%);
-      box-shadow:
-        0 1px 0 #fff3,
-        0 4px 12px rgba(67,229,255,0.35);
+      color: #071021;
     }
 
     #stage {
@@ -159,113 +114,102 @@
       align-items: center;
       justify-items: center;
       border-radius: 10px;
-      background: repeating-linear-gradient(
-        -45deg,
-        #0c1430 0 20px,
-        #0a1128 20px 40px
-      );
+      background: repeating-linear-gradient(-45deg, #0c1430 0 20px, #0a1128 20px 40px);
       outline: 1px solid rgba(255,255,255,0.05);
       min-height: 40vh;
       color: #9fb3db;
       font-weight: 600;
     }
 
-    /* Start Later button (only shown if player clicks "Cancel" in confirm) */
-    #startLater {
-      display: none;
-      justify-self: start;
+    #startLater { display: none; }
+
+    /* Mobile tweaks */
+    @media (max-width: 600px) {
+      #countdown { flex-wrap: wrap; }
+      #game { min-height: 60vh; }
     }
 
-    /* Accessibility preference: reduce motion */
-    @media (prefers-reduced-motion: reduce) {
-      #countdown .digit,
-      #countdown .go {
-        transition: none;
-      }
+    /* Modal */
+    #launchModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
     }
+    #launchModal .modal-box {
+      background: #101833;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      color: var(--text);
+    }
+    #launchModal .modal-box p { margin-bottom: 16px; }
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>AS/400 Wargame — Launch Console</h1>
-      <div class="hint">Countdown is horizontal and runs at <strong>0.25 sec</strong> per count.</div>
+      <div class="hint">Countdown runs at <strong>0.25 sec</strong> per count.</div>
     </header>
 
-    <!-- Horizontal countdown row -->
-    <div id="countdown" aria-live="assertive" aria-label="Launch countdown"></div>
+    <div id="countdown" aria-live="assertive"></div>
 
-    <!-- Game container; replace placeholder with your game UI -->
-    <section id="game" aria-label="Game area">
+    <section id="game">
       <div id="game-toolbar">
         <div class="hint">Status: <span id="status">Waiting to launch…</span></div>
         <div>
           <button id="startLater" class="btn primary">Start Countdown</button>
-          <button id="abortBtn" class="btn" title="Abort launch">Abort</button>
+          <button id="abortBtn" class="btn">Abort</button>
         </div>
       </div>
-      <div id="stage">
-        <div id="placeholder">Game not launched yet.</div>
-      </div>
+      <div id="stage"><div id="placeholder">Game not launched yet.</div></div>
     </section>
   </div>
 
-  <noscript>
-    <div style="padding:12px;margin:12px;border-radius:8px;background:#ffefef;color:#5a0000;">
-      JavaScript is required to start the game.
+  <!-- Modal -->
+  <div id="launchModal">
+    <div class="modal-box">
+      <p>Ready to launch?</p>
+      <button id="yesBtn" class="btn primary">Yes</button>
+      <button id="noBtn" class="btn">No</button>
     </div>
-  </noscript>
+  </div>
 
   <script>
-    /**
-     * Immediately ask the user if they want to launch (no delay).
-     * If confirmed, run a horizontal 3-2-1 countdown at 0.25s per count, then launch.
-     */
-    (function immediatePrompt() {
-      const ask = () => {
-        const yes = confirm("Ready to launch?");
-        if (yes) {
-          queueCountdownThenLaunch();
-        } else {
-          // Show a visible button so the user can start later
-          document.getElementById("startLater").style.display = "inline-flex";
-          setStatus("Launch canceled. Click “Start Countdown” to begin at any time.");
-        }
+    // Show modal instead of confirm
+    function showLaunchModal() {
+      const modal = document.getElementById("launchModal");
+      modal.style.display = "flex";
+      document.getElementById("yesBtn").onclick = () => {
+        modal.style.display = "none";
+        queueCountdownThenLaunch();
       };
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", ask, { once: true });
-      } else {
-        ask();
-      }
-    })();
-
-    /**
-     * Top-level orchestration: run countdown, then launch the game.
-     */
-    function queueCountdownThenLaunch() {
-      const COUNT_FROM = 3;
-      const COUNT_TO = 1;
-      const INTERVAL_MS = 250; // 0.25 seconds per count
-
-      runHorizontalCountdown(COUNT_FROM, COUNT_TO, INTERVAL_MS)
-        .then(launchGame)
-        .catch(err => {
-          console.error("Countdown error:", err);
-          setStatus("Countdown failed.");
-        });
+      document.getElementById("noBtn").onclick = () => {
+        modal.style.display = "none";
+        document.getElementById("startLater").style.display = "inline-flex";
+        setStatus("Launch canceled. Click “Start Countdown” to begin at any time.");
+      };
     }
 
-    /**
-     * Render a horizontal countdown row and highlight one digit at a time.
-     * Returns a Promise that resolves after “LAUNCH” flashes briefly.
-     */
-    function runHorizontalCountdown(from = 3, to = 1, intervalMs = 250) {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", showLaunchModal, { once: true });
+    } else {
+      showLaunchModal();
+    }
+
+    function queueCountdownThenLaunch() {
+      runHorizontalCountdown(3, 1, 250).then(launchGame);
+    }
+
+    function runHorizontalCountdown(from, to, intervalMs) {
       const row = document.getElementById("countdown");
       row.innerHTML = "";
       row.style.display = "flex";
-
-      // Build digits left-to-right (e.g., 3 2 1)
       const nums = [];
       const step = from <= to ? 1 : -1;
       for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
@@ -275,79 +219,42 @@
         row.appendChild(span);
         nums.push(span);
       }
-
       setStatus("Countdown initiated…");
-
       return new Promise(resolve => {
         let i = 0;
-
         const tick = () => {
-          // Clear previous highlight
           nums.forEach(d => d.classList.remove("active"));
-
           if (i >= nums.length) {
-            // Replace digits with a quick “LAUNCH” badge, then resolve
-            row.innerHTML = "";
-            const go = document.createElement("span");
-            go.className = "go";
-            go.textContent = "LAUNCH";
-            row.appendChild(go);
-
-            // Briefly show “LAUNCH”, then hide the row and resolve
-            setTimeout(() => {
-              row.style.display = "none";
-              resolve();
-            }, intervalMs);
+            row.innerHTML = "<span class='go'>LAUNCH</span>";
+            setTimeout(() => { row.style.display = "none"; resolve(); }, intervalMs);
             return;
           }
-
-          // Highlight current digit
           nums[i].classList.add("active");
-          i += 1;
-
+          i++;
           setTimeout(tick, intervalMs);
         };
-
         tick();
       });
     }
 
-    /**
-     * Replace this with your actual game startup logic.
-     * If your page already has a `launch()` function, call it from here.
-     */
     function launchGame() {
       setStatus("Launched. Initializing…");
       const stage = document.getElementById("stage");
       const ph = document.getElementById("placeholder");
-
-      // Example placeholder content—swap this for your real game init.
       ph.textContent = "";
       const demo = document.createElement("div");
       demo.style.padding = "12px 16px";
-      demo.style.borderRadius = "10px";
       demo.style.background = "rgba(9, 19, 45, 0.7)";
-      demo.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.06)";
-      demo.style.color = "#bcd4ff";
-      demo.style.textAlign = "center";
-      demo.innerHTML = `
-        <div style="font-weight:800;font-size:1.25rem;margin-bottom:6px;">Game Started</div>
-        <div>Insert your game canvas/UI here (e.g., load <code>wargame.html</code> or call your <code>launch()</code> function).</div>
-      `;
+      demo.style.borderRadius = "10px";
+      demo.innerHTML = `<div style="font-weight:800;font-size:1.25rem;margin-bottom:6px;">Game Started</div>
+        <div>Insert your game canvas/UI here.</div>`;
       stage.appendChild(demo);
-
-      // If you already have a game launcher, do it here:
-      // launch();  // ← call your existing function if present
     }
 
-    /**
-     * Utility: set status text in toolbar.
-     */
     function setStatus(text) {
       document.getElementById("status").textContent = text;
     }
 
-    // Controls
     document.getElementById("startLater").addEventListener("click", () => {
       document.getElementById("startLater").style.display = "none";
       queueCountdownThenLaunch();
