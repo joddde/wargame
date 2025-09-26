@@ -1,348 +1,59 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <!-- helps on mobile -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text-Based Game</title>
-
-  <!-- (Optional) Kill native dialogs to prevent any lingering prompt/alert from old code -->
-  <script>
-    (function () {
+<!-- BLOCK all native modals + log where they were called -->
+<script>
+  (function () {
+    // Block alert/confirm/prompt and show call site
+    function blockModal(name, fallbackReturn) {
+      const original = window[name];
+      const stub = function (...args) {
+        try {
+          console.warn(`[BLOCKED ${name}]`, ...args);
+          // Show a stack trace so we can see which file/line tried to call it
+          console.trace(`[STACK for ${name}]`);
+        } catch (e) {}
+        return fallbackReturn;
+      };
       try {
-        const block = (name, ret) => function (...args) {
-          console.warn(`[blocked ${name}]`, ...args);
-          return ret;
-        };
-        window.alert = block('alert', undefined);
-        window.confirm = block('confirm', false);
-        window.prompt = block('prompt', null);
-      } catch (e) { /* no-op */ }
-    })();
-  </script>
-
-  <style>
-    :root {
-      --bg: #000;
-      --fg: #00d000; /* terminal green */
-      --fg-dim: #0a8f0a;
-      --accent: #1aff1a;
-      --err: #ff5c5c;
-    }
-
-    * { box-sizing: border-box; }
-    html, body {
-      height: 100%;
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: "Courier New", Courier, monospace;
-    }
-
-    body { display: flex; flex-direction: column; }
-
-    #game {
-      padding: 16px 16px 96px; /* bottom space for sticky controls */
-      white-space: pre-wrap;
-      line-height: 1.4;
-      overflow-y: auto;
-      flex: 1 1 auto;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    /* For inline/wrapping rows (cities, countdown numbers) */
-    .inline-row {
-      white-space: normal;     /* allow wrapping across width */
-      word-break: break-word;
-      margin-bottom: 8px;
-    }
-
-    /* Error display */
-    .error {
-      color: var(--err);
-      white-space: pre-wrap;
-      margin: 8px 0;
-    }
-
-    /* Sticky on-screen controls (no popups) */
-    #controls {
-      position: sticky;
-      bottom: 0; left: 0; right: 0;
-      background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.85) 30%, rgba(0,0,0,1) 100%);
-      padding: 12px 16px 16px;
-      display: none; /* shown when needed */
-      border-top: 1px solid #033603;
-    }
-    #question {
-      margin: 0 0 8px 0;
-      color: var(--accent);
-      font-weight: bold;
-      font-size: clamp(14px, 2.6vw, 18px);
-    }
-    .row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    input[type="number"] {
-      background: #001900;
-      color: var(--fg);
-      border: 1px solid #065e06;
-      padding: 10px 12px;
-      border-radius: 6px;
-      font-size: clamp(14px, 3vw, 18px);
-      width: 140px;
-      -moz-appearance: textfield;
-    }
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    button {
-      background: #002e00;
-      color: var(--fg);
-      border: 1px solid #0a8f0a;
-      padding: 12px 16px;
-      border-radius: 6px;
-      font-size: clamp(14px, 3.2vw, 18px);
-      min-height: 44px; /* touch target */
-      cursor: pointer;
-    }
-    button:hover { background: #003a00; }
-    button:active { background: #004400; }
-    button.primary { background: #014a01; border-color: #11a511; }
-    .dim { color: var(--fg-dim); }
-
-    @media (prefers-reduced-motion: reduce) {
-      * { scroll-behavior: auto !important; }
-    }
-  </style>
-</head>
-<body>
-  <noscript>
-    <div style="color:#ff5c5c; padding:16px;">
-      JavaScript is disabled. Enable it to play.
-    </div>
-  </noscript>
-
-  <div id="game" aria-live="polite" aria-label="Game terminal output">Loading…</div>
-
-  <!-- Inline, on-screen launch choice -->
-  <div id="controls" role="group" aria-label="Launch decision controls">
-    <p id="question"></p>
-    <div class="row">
-      <input
-        id="missileCount"
-        type="number"
-        inputmode="numeric"
-        pattern="[0-9]*"
-        min="0"
-        step="1"
-        placeholder="How many?"
-        aria-label="Number of missiles to launch"
-      />
-      <button id="btnLaunch" class="primary" type="button">Launch</button>
-      <button id="btnNoLaunch" type="button">Do Not Launch</button>
-    </div>
-  </div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const gameEl = document.getElementById('game');
-      const controlsEl = document.getElementById('controls');
-      const questionEl = document.getElementById('question');
-      const missileInput = document.getElementById('missileCount');
-      const btnLaunch = document.getElementById('btnLaunch');
-      const btnNoLaunch = document.getElementById('btnNoLaunch');
-
-      let missilesChosen = 0;
-
-      // ---- Error reporting to screen & console ----
-      function showError(msg) {
-        const div = document.createElement('div');
-        div.className = 'error';
-        div.textContent = `Error: ${msg}`;
-        gameEl.appendChild(div);
-        gameEl.scrollTop = gameEl.scrollHeight;
-        console.error(msg);
+        Object.defineProperty(window, name, { configurable: true, writable: true, value: stub });
+      } catch {
+        window[name] = stub;
       }
-      window.addEventListener('error', (e) => {
-        showError(`${e.message} (${e.filename}:${e.lineno}:${e.colno})`);
-      });
-      window.addEventListener('unhandledrejection', (e) => {
-        showError(`Unhandled promise rejection: ${e.reason}`);
-      });
+    }
+    blockModal('alert', undefined);
+    blockModal('confirm', false);
+    blockModal('prompt', null);
 
-      // ---- Basic UI helpers ----
-      function displayMessage(message = '') {
-        gameEl.innerText += (message + '\n');
-        gameEl.scrollTop = gameEl.scrollHeight;
-      }
-      function clearScreen() { gameEl.innerText = ''; }
-      function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
-
-      function showLaunchQuestion() {
-        questionEl.textContent = 'Do you want to launch nuclear missiles at China? If yes, how many?';
-        missileInput.value = '';
-        controlsEl.style.display = 'block';
-        try { missileInput.focus(); } catch (_) {}
-      }
-      function hideLaunchQuestion() {
-        controlsEl.style.display = 'none';
-      }
-
-      // Render an inline row (wraps horizontally across the screen)
-      function appendInlineRow(textItems, separator = '  ') {
-        const row = document.createElement('div');
-        row.className = 'inline-row';
-        row.textContent = Array.isArray(textItems) ? textItems.join(separator) : String(textItems);
-        gameEl.appendChild(row);
-        gameEl.scrollTop = gameEl.scrollHeight;
-        return row;
-      }
-
-      // Cities (horizontal)
-      function listCitiesInline(missiles) {
-        const cities = [
-          "Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Tianjin", "Chongqing", "Nanjing", "Wuhan", "Chengdu", "Xi'an",
-          "Pyongyang", "Hamhung", "Chongjin", "Nampo", "Wonsan", "Sinuiju", "Tanchon", "Kaechon", "Kaesong", "Sariwon"
-        ];
-        const chosen = [];
-        for (let i = 0; i < missiles; i++) {
-          chosen.push(cities[i % cities.length]);
+    // Prevent "Leave site?" / navigation confirmation dialogs
+    try {
+      // 1) Block direct property assignment
+      Object.defineProperty(window, 'onbeforeunload', {
+        configurable: true,
+        get() { return null; },
+        set(fn) {
+          console.warn('[BLOCKED onbeforeunload assignment]', fn);
+          // no-op
         }
-        if (chosen.length) appendInlineRow(chosen);
-      }
+      });
+    } catch {}
 
-      function displayCitiesInline(number) {
-        const cities = [
-          "Mexico City", "New York City", "Los Angeles", "Toronto", "Chicago", "Houston", "Havana", "Tijuana",
-          "Montreal", "Phoenix", "Ecatepec de Morelos", "León", "Philadelphia", "Puebla", "Juárez", "Zapopan",
-          "San Antonio", "Calgary", "Guadalajara", "San Diego", "Dallas", "Guatemala City", "Port-au-Prince",
-          "Monterrey", "Tegucigalpa", "Edmonton", "Panama City", "Nezahualcóyotl", "Ottawa", "Managua",
-          "Santo Domingo", "Austin", "Jacksonville", "San Jose", "Fort Worth", "Chihuahua", "Mérida",
-          "Naucalpan", "Toluca", "Columbus", "Charlotte", "Cancún", "Indianapolis", "Saltillo", "Aguascalientes",
-          "Hermosillo", "Mexicali", "Seattle", "Denver", "El Paso", "Detroit", "Culiacán", "Guadalupe",
-          "Acapulco de Juárez", "Mississauga", "Boston", "Memphis", "Tlalnepantla", "New South Memphis",
-          "North York", "Portland", "Winnipeg", "Oklahoma City", "Santiago de Querétaro", "Las Vegas",
-          "Baltimore", "Coyoacán", "Santa María Chimalhuacán", "Torreón", "Washington, D.C.", "Milwaukee",
-          "Vancouver", "Scarborough", "Morelia", "Reynosa", "New Kingston", "Tlaquepaque", "Tlalpan",
-          "South Boston", "Albuquerque", "Santiago de Cuba", "Tuxtla", "Cuauhtémoc", "Tucson", "Nashville",
-          "Québec", "San Salvador", "Fresno", "Hamilton", "Victoria de Durango", "Sacramento", "San Pedro Sula",
-          "Toluca", "Ciudad López Mateos", "Cuautitlán Izcalli"
-        ];
-        const chosen = [];
-        for (let i = 0; i < number; i++) {
-          chosen.push(cities[i % cities.length]);
-        }
-        if (chosen.length) appendInlineRow(chosen);
-      }
-
-      // Countdown (twice as fast: 500ms per step). Label once, then numbers only, horizontal.
-      function countdownToImpactNumbers(minutes, callback) {
-        displayMessage('Time until impact');
-        const numbersRow = appendInlineRow([], ' ');
-        let current = minutes;
-
-        const interval = setInterval(() => {
-          numbersRow.textContent += (numbersRow.textContent.length ? ' ' : '') + current;
-          gameEl.scrollTop = gameEl.scrollHeight;
-
-          if (current <= 0) {
-            clearInterval(interval);
-            try { callback(); } catch (err) { showError(err); }
-          }
-          current--;
-        }, 500);
-      }
-
-      // Survivor estimates (fictional model)
-      function formatNumber(n) { return n.toLocaleString(undefined); }
-
-      function estimateSurvivorsByMissiles(missilesLaunched) {
-        const worldPop = 8.1e9; // illustrative baseline
-        const totalMissiles = missilesLaunched + 50; // opponent volley assumed 50
-        const severity = Math.max(0.25, totalMissiles / 100); // gentler floor
-
-        const oneYearFraction = Math.max(0.02, Math.pow(0.78, severity));
-        const tenYearFraction = Math.max(0.01, oneYearFraction * Math.pow(0.88, severity));
-
-        return {
-          oneYear: worldPop * oneYearFraction,
-          tenYear: worldPop * tenYearFraction
-        };
-      }
-
-      function showSurvivorEstimates() {
-        const { oneYear, tenYear } = estimateSurvivorsByMissiles(missilesChosen);
-        displayMessage('Estimating survivors based on the exchange...');
-        displayMessage(`Estimated survivors after 1 year: ~${formatNumber(Math.round(oneYear))} people.`);
-        displayMessage(`Estimated survivors after 10 years: ~${formatNumber(Math.round(tenYear))} people.`);
-      }
-
-      // Controls
-      btnLaunch.addEventListener('click', () => {
-        const value = missileInput.value.trim();
-        const num = Number(value);
-        if (value === '' || Number.isNaN(num) || num < 0) {
-          displayMessage('Please enter a valid number of missiles (0 or more).');
-          try { missileInput.focus(); } catch (_) {}
+    // 2) Block addEventListener('beforeunload', ...)
+    (function () {
+      const origAdd = window.addEventListener;
+      window.addEventListener = function (type, listener, options) {
+        if (String(type).toLowerCase() === 'beforeunload') {
+          console.warn('[BLOCKED beforeunload listener]', listener);
           return;
         }
-        missilesChosen = num;
-        hideLaunchQuestion();
+        return origAdd.call(this, type, listener, options);
+      };
+    })();
 
-        displayMessage(`You have chosen to launch ${num} nuclear missiles at China.`);
-        listCitiesInline(num);
-
-        countdownToImpactNumbers(25, () => {
-          displayMessage('China has launched 50 nuclear missiles at the USA, Canada, and Mexico.');
-          displayMessage('The largest 50 cities in North America are the targets.');
-          displayCitiesInline(50);
-
-          countdownToImpactNumbers(20, () => {
-            showSurvivorEstimates();
-          });
-        });
-      });
-
-      btnNoLaunch.addEventListener('click', () => {
-        missilesChosen = 0;
-        hideLaunchQuestion();
-        displayMessage('You have chosen not to launch any missiles.');
-        // Still proceed to "end" with estimates (0 missiles factored in)
-        countdownToImpactNumbers(25, () => {
-          displayMessage('No retaliation launched by you.');
-          showSurvivorEstimates();
-        });
-      });
-
-      missileInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') btnLaunch.click();
-      });
-
-      // Main flow (with try/catch)
-      (async function startGame() {
-        try {
-          clearScreen();
-          displayMessage('*** IBM AS400 Terminal ***');
-          displayMessage('A nuclear missile has been launched from China.');
-
-          await sleep(1000);
-          displayMessage('The missile will hit San Francisco in 25 minutes.');
-
-          await sleep(500);
-          displayMessage('You are the President of the United States.');
-
-          await sleep(500);
-          showLaunchQuestion();
-        } catch (err) {
-          showError(err);
-        }
-      })();
-    });
-  </script>
-</body>
-</html>
+    // Optional: block window.open pop-up windows (just in case)
+    try {
+      const origOpen = window.open;
+      window.open = function (...args) {
+        console.warn('[BLOCKED window.open]', args);
+        return null;
+      };
+    } catch {}
+  })();
+</script>
