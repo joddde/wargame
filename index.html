@@ -1,214 +1,364 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <!-- helps on mobile -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- (Best set via HTTP headers, but meta won't hurt on local) -->
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
-  <title>Text-Based Game</title>
-
-  <!-- ===== Kill any native prompts/alerts/confirms (put FIRST) ===== -->
-  <script>
-    (function () {
-      try {
-        const block = (name, ret) => function (...args) {
-          console.warn(`[blocked ${name}]`, ...args);
-          return ret;
-        };
-        window.alert = block('alert', undefined);
-        window.confirm = block('confirm', false);
-        window.prompt = block('prompt', null);
-      } catch (e) {
-        /* no-op */
-      }
-    })();
-  </script>
-  <!-- =============================================================== -->
-
+  <meta charset="utf-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  />
+  <title>Wargame — Launch</title>
   <style>
     :root {
-      --bg: #000;
-      --fg: #00d000; /* terminal green */
-      --fg-dim: #0a8f0a;
-      --accent: #1aff1a;
+      --bg: #0b1020;
+      --panel: #101833;
+      --text: #e7f0ff;
+      --accent: #43e5ff;
+      --muted: #7f8ca3;
+      --interval-ms: 250; /* 0.25 seconds per count */
     }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg);
-      font-family: "Courier New", Courier, monospace; }
 
-    body { display: flex; flex-direction: column; }
-    #game {
-      padding: 16px 16px 96px; /* bottom space for sticky controls */
-      white-space: pre-wrap;
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: radial-gradient(1000px 800px at 50% 20%, #101629 0, var(--bg) 50%, #04070f 100%);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
       line-height: 1.4;
-      overflow-y: auto;
-      flex: 1 1 auto;
-      -webkit-overflow-scrolling: touch;
+      display: flex;
+      align-items: stretch;
+      justify-content: center;
     }
-    #controls {
-      position: sticky; bottom: 0; left: 0; right: 0;
-      background: linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,0.85) 30%, rgba(0,0,0,1) 100%);
-      padding: 12px 16px 16px;
-      display: none; /* shown when needed */
-      border-top: 1px solid #033603;
+
+    .wrap {
+      width: min(1100px, 96vw);
+      padding: 16px;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 16px;
     }
-    #question { margin: 0 0 8px 0; color: var(--accent); font-weight: bold;
-      font-size: clamp(14px, 2.6vw, 18px); }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    input[type="number"] {
-      background: #001900; color: var(--fg); border: 1px solid #065e06;
-      padding: 10px 12px; border-radius: 6px; font-size: clamp(14px, 3vw, 18px);
-      width: 140px; -moz-appearance: textfield;
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-    button {
-      background: #002e00; color: var(--fg); border: 1px solid #0a8f0a;
-      padding: 12px 16px; border-radius: 6px; font-size: clamp(14px, 3.2vw, 18px);
-      min-height: 44px; cursor: pointer;
+
+    h1 {
+      margin: 0;
+      font-size: clamp(18px, 2.8vw, 28px);
+      letter-spacing: 0.02em;
+      color: #d9e6ff;
     }
-    button:hover { background: #003a00; }
-    button:active { background: #004400; }
-    button.primary { background: #014a01; border-color: #11a511; }
-    .dim { color: var(--fg-dim); }
-    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    /* Countdown row (horizontal) */
+    #countdown {
+      display: none; /* shown when running */
+      align-items: center;
+      justify-content: center;
+      gap: clamp(12px, 2.4vw, 28px);
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #0d1531 0%, #0a1128 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.05),
+        0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    #countdown .digit,
+    #countdown .go {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(42px, 7.5vw, 68px);
+      height: clamp(42px, 7.5vw, 68px);
+      border-radius: 10px;
+      background: #0f1736;
+      color: #98a7c4;
+      font-weight: 800;
+      font-size: clamp(22px, 5.8vw, 40px);
+      letter-spacing: 0.02em;
+      user-select: none;
+      transition: transform 120ms ease, color 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 120ms ease;
+      opacity: 0.35;
+    }
+
+    #countdown .digit.active {
+      color: var(--accent);
+      background: #0c2140;
+      transform: scale(1.18);
+      opacity: 1;
+      box-shadow:
+        0 0 0 2px rgba(67,229,255,0.18),
+        0 0 26px rgba(67,229,255,0.35);
+      text-shadow: 0 0 12px rgba(67,229,255,0.6);
+    }
+
+    #countdown .go {
+      width: auto;
+      padding: 0 14px;
+      font-weight: 900;
+      color: #0b152e;
+      background: linear-gradient(180deg, #6bf0ff 0%, #44e5ff 100%);
+      box-shadow:
+        0 0 0 2px rgba(67,229,255,0.22),
+        0 0 30px rgba(67,229,255,0.5),
+        inset 0 -6px 18px rgba(0,0,0,0.15);
+      opacity: 1;
+    }
+
+    /* Game container (replace with your actual game UI/canvas) */
+    #game {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #0e1634 0%, #0a1127 100%);
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.04),
+        0 18px 40px rgba(0,0,0,0.45);
+      min-height: 55vh;
+    }
+
+    #game-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .btn {
+      appearance: none;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      color: #0c162f;
+      background: #d5e8ff;
+      cursor: pointer;
+      transition: transform 120ms ease, filter 120ms ease;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn:active { transform: translateY(1px); }
+    .btn.primary {
+      color: #071021;
+      background: linear-gradient(180deg, #6bf0ff 0%, #44e5ff 100%);
+      box-shadow:
+        0 1px 0 #fff3,
+        0 4px 12px rgba(67,229,255,0.35);
+    }
+
+    #stage {
+      display: grid;
+      align-items: center;
+      justify-items: center;
+      border-radius: 10px;
+      background: repeating-linear-gradient(
+        -45deg,
+        #0c1430 0 20px,
+        #0a1128 20px 40px
+      );
+      outline: 1px solid rgba(255,255,255,0.05);
+      min-height: 40vh;
+      color: #9fb3db;
+      font-weight: 600;
+    }
+
+    /* Start Later button (only shown if player clicks "Cancel" in confirm) */
+    #startLater {
+      display: none;
+      justify-self: start;
+    }
+
+    /* Accessibility preference: reduce motion */
+    @media (prefers-reduced-motion: reduce) {
+      #countdown .digit,
+      #countdown .go {
+        transition: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="game" aria-live="polite" aria-label="Game terminal output"></div>
+  <div class="wrap">
+    <header>
+      <h1>AS/400 Wargame — Launch Console</h1>
+      <div class="hint">Countdown is horizontal and runs at <strong>0.25 sec</strong> per count.</div>
+    </header>
 
-  <!-- Inline, on-screen question -->
-  <div id="controls" role="group" aria-label="Launch decision controls">
-    <p id="question"></p>
-    <div class="row">
-      <input id="missileCount" type="number" inputmode="numeric" pattern="[0-9]*"
-             min="1" step="1" placeholder="How many?"
-             aria-label="Number of missiles to launch" />
-      <button id="btnLaunch" class="primary" type="button">Launch</button>
-      <button id="btnNoLaunch" type="button">Do Not Launch</button>
-    </div>
+    <!-- Horizontal countdown row -->
+    <div id="countdown" aria-live="assertive" aria-label="Launch countdown"></div>
+
+    <!-- Game container; replace placeholder with your game UI -->
+    <section id="game" aria-label="Game area">
+      <div id="game-toolbar">
+        <div class="hint">Status: <span id="status">Waiting to launch…</span></div>
+        <div>
+          <button id="startLater" class="btn primary">Start Countdown</button>
+          <button id="abortBtn" class="btn" title="Abort launch">Abort</button>
+        </div>
+      </div>
+      <div id="stage">
+        <div id="placeholder">Game not launched yet.</div>
+      </div>
+    </section>
   </div>
 
+  <noscript>
+    <div style="padding:12px;margin:12px;border-radius:8px;background:#ffefef;color:#5a0000;">
+      JavaScript is required to start the game.
+    </div>
+  </noscript>
+
   <script>
-    // Build stamp for cache sanity checks
-    displayBuild = () => {
-      const stamp = 'BUILD v2025-09-26-1';
-      console.log(stamp);
-      return stamp;
-    };
-
-    const gameEl = document.getElementById('game');
-    const controlsEl = document.getElementById('controls');
-    const questionEl = document.getElementById('question');
-    const missileInput = document.getElementById('missileCount');
-    const btnLaunch = document.getElementById('btnLaunch');
-    const btnNoLaunch = document.getElementById('btnNoLaunch');
-
-    function displayMessage(message = '') {
-      gameEl.innerText += (message + '\n');
-      gameEl.scrollTop = gameEl.scrollHeight;
-    }
-    function clearScreen() { gameEl.innerText = ''; }
-    function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
-
-    function showLaunchQuestion() {
-      questionEl.textContent = 'Do you want to launch nuclear missiles at China? If yes, how many?';
-      missileInput.value = '';
-      controlsEl.style.display = 'block';
-      missileInput.focus({ preventScroll: false });
-    }
-    function hideLaunchQuestion() { controlsEl.style.display = 'none'; }
-
-    function listCities(missiles) {
-      const cities = [
-        "Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Tianjin", "Chongqing", "Nanjing", "Wuhan", "Chengdu", "Xi'an",
-        "Pyongyang", "Hamhung", "Chongjin", "Nampo", "Wonsan", "Sinuiju", "Tanchon", "Kaechon", "Kaesong", "Sariwon"
-      ];
-      for (let i = 0; i < missiles; i++) displayMessage(cities[i % cities.length]);
-    }
-
-    function displayCities(number) {
-      const cities = [
-        "Mexico City", "New York City", "Los Angeles", "Toronto", "Chicago", "Houston", "Havana", "Tijuana",
-        "Montreal", "Phoenix", "Ecatepec de Morelos", "León", "Philadelphia", "Puebla", "Juárez", "Zapopan",
-        "San Antonio", "Calgary", "Guadalajara", "San Diego", "Dallas", "Guatemala City", "Port-au-Prince",
-        "Monterrey", "Tegucigalpa", "Edmonton", "Panama City", "Nezahualcóyotl", "Ottawa", "Managua",
-        "Santo Domingo", "Austin", "Jacksonville", "San Jose", "Fort Worth", "Chihuahua", "Mérida",
-        "Naucalpan", "Toluca", "Columbus", "Charlotte", "Cancún", "Indianapolis", "Saltillo", "Aguascalientes",
-        "Hermosillo", "Mexicali", "Seattle", "Denver", "El Paso", "Detroit", "Culiacán", "Guadalupe",
-        "Acapulco de Juárez", "Mississauga", "Boston", "Memphis", "Tlalnepantla", "New South Memphis",
-        "North York", "Portland", "Winnipeg", "Oklahoma City", "Santiago de Querétaro", "Las Vegas",
-        "Baltimore", "Coyoacán", "Santa María Chimalhuacán", "Torreón", "Washington, D.C.", "Milwaukee",
-        "Vancouver", "Scarborough", "Morelia", "Reynosa", "New Kingston", "Tlaquepaque", "Tlalpan",
-        "South Boston", "Albuquerque", "Santiago de Cuba", "Tuxtla", "Cuauhtémoc", "Tucson", "Nashville",
-        "Québec", "San Salvador", "Fresno", "Hamilton", "Victoria de Durango", "Sacramento", "San Pedro Sula",
-        "Toluca", "Ciudad López Mateos", "Cuautitlán Izcalli"
-      ];
-      for (let i = 0; i < number; i++) displayMessage(cities[i % cities.length]);
-    }
-
-    function countdownToImpact(minutes, callback) {
-      const interval = setInterval(() => {
-        if (minutes > 0) {
-          displayMessage(`Time until impact: ${minutes} minutes`);
-          minutes--;
+    /**
+     * Immediately ask the user if they want to launch (no delay).
+     * If confirmed, run a horizontal 3-2-1 countdown at 0.25s per count, then launch.
+     */
+    (function immediatePrompt() {
+      const ask = () => {
+        const yes = confirm("Ready to launch?");
+        if (yes) {
+          queueCountdownThenLaunch();
         } else {
-          clearInterval(interval);
-          callback();
+          // Show a visible button so the user can start later
+          document.getElementById("startLater").style.display = "inline-flex";
+          setStatus("Launch canceled. Click “Start Countdown” to begin at any time.");
         }
-      }, 1000);
+      };
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", ask, { once: true });
+      } else {
+        ask();
+      }
+    })();
+
+    /**
+     * Top-level orchestration: run countdown, then launch the game.
+     */
+    function queueCountdownThenLaunch() {
+      const COUNT_FROM = 3;
+      const COUNT_TO = 1;
+      const INTERVAL_MS = 250; // 0.25 seconds per count
+
+      runHorizontalCountdown(COUNT_FROM, COUNT_TO, INTERVAL_MS)
+        .then(launchGame)
+        .catch(err => {
+          console.error("Countdown error:", err);
+          setStatus("Countdown failed.");
+        });
     }
 
-    function estimateSurvivors() {
-      displayMessage('Estimating the number of people that will still be alive on Earth one year after a nuclear exchange between the United States and China...');
-      setTimeout(() => {
-        displayMessage('Estimated survivors: Approximately 500 million people.');
-      }, 2000);
+    /**
+     * Render a horizontal countdown row and highlight one digit at a time.
+     * Returns a Promise that resolves after “LAUNCH” flashes briefly.
+     */
+    function runHorizontalCountdown(from = 3, to = 1, intervalMs = 250) {
+      const row = document.getElementById("countdown");
+      row.innerHTML = "";
+      row.style.display = "flex";
+
+      // Build digits left-to-right (e.g., 3 2 1)
+      const nums = [];
+      const step = from <= to ? 1 : -1;
+      for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
+        const span = document.createElement("span");
+        span.className = "digit";
+        span.textContent = String(n);
+        row.appendChild(span);
+        nums.push(span);
+      }
+
+      setStatus("Countdown initiated…");
+
+      return new Promise(resolve => {
+        let i = 0;
+
+        const tick = () => {
+          // Clear previous highlight
+          nums.forEach(d => d.classList.remove("active"));
+
+          if (i >= nums.length) {
+            // Replace digits with a quick “LAUNCH” badge, then resolve
+            row.innerHTML = "";
+            const go = document.createElement("span");
+            go.className = "go";
+            go.textContent = "LAUNCH";
+            row.appendChild(go);
+
+            // Briefly show “LAUNCH”, then hide the row and resolve
+            setTimeout(() => {
+              row.style.display = "none";
+              resolve();
+            }, intervalMs);
+            return;
+          }
+
+          // Highlight current digit
+          nums[i].classList.add("active");
+          i += 1;
+
+          setTimeout(tick, intervalMs);
+        };
+
+        tick();
+      });
+    }
+
+    /**
+     * Replace this with your actual game startup logic.
+     * If your page already has a `launch()` function, call it from here.
+     */
+    function launchGame() {
+      setStatus("Launched. Initializing…");
+      const stage = document.getElementById("stage");
+      const ph = document.getElementById("placeholder");
+
+      // Example placeholder content—swap this for your real game init.
+      ph.textContent = "";
+      const demo = document.createElement("div");
+      demo.style.padding = "12px 16px";
+      demo.style.borderRadius = "10px";
+      demo.style.background = "rgba(9, 19, 45, 0.7)";
+      demo.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.06)";
+      demo.style.color = "#bcd4ff";
+      demo.style.textAlign = "center";
+      demo.innerHTML = `
+        <div style="font-weight:800;font-size:1.25rem;margin-bottom:6px;">Game Started</div>
+        <div>Insert your game canvas/UI here (e.g., load <code>wargame.html</code> or call your <code>launch()</code> function).</div>
+      `;
+      stage.appendChild(demo);
+
+      // If you already have a game launcher, do it here:
+      // launch();  // ← call your existing function if present
+    }
+
+    /**
+     * Utility: set status text in toolbar.
+     */
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
     }
 
     // Controls
-    btnLaunch.addEventListener('click', () => {
-      const value = missileInput.value.trim();
-      const num = Number(value);
-      if (!value || Number.isNaN(num) || num < 1) {
-        displayMessage('Please enter a valid positive number of missiles.');
-        missileInput.focus();
-        return;
-      }
-      hideLaunchQuestion();
-      displayMessage(`You have chosen to launch ${num} nuclear missiles at China.`);
-      listCities(num);
-      countdownToImpact(25, () => {
-        displayMessage('China has launched 50 nuclear missiles at the USA, Canada, and Mexico.');
-        displayMessage('The largest 50 cities in North America are the targets.');
-        displayCities(50);
-        countdownToImpact(20, estimateSurvivors);
-      });
+    document.getElementById("startLater").addEventListener("click", () => {
+      document.getElementById("startLater").style.display = "none";
+      queueCountdownThenLaunch();
     });
 
-    btnNoLaunch.addEventListener('click', () => {
-      hideLaunchQuestion();
-      displayMessage('You have chosen not to launch any missiles.');
-      displayMessage('Game Over.');
+    document.getElementById("abortBtn").addEventListener("click", () => {
+      setStatus("Launch aborted.");
+      const row = document.getElementById("countdown");
+      row.style.display = "none";
+      row.innerHTML = "";
     });
-
-    missileInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') btnLaunch.click();
-    });
-
-    // Main
-    (async function startGame() {
-      clearScreen();
-      displayMessage(displayBuild()); // shows build/version
-      displayMessage('*** IBM AS400 Terminal ***');
-      displayMessage('A nuclear missile has been launched from China.');
-      await sleep(10000);
-      displayMessage('The missile will hit San Francisco in 25 minutes.');
-      await sleep(1000);
-      showLaunchQuestion();
-    })();
   </script>
 </body>
+</html>
