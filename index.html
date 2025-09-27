@@ -15,115 +15,107 @@
       --border: #1f1f1f;
       --accent: #00ff9c;
     }
+
     body {
       background-color: var(--bg);
       color: var(--fg);
-      font-family: "Courier New", Courier, monospace;
+      font-family: 'Courier New', Courier, monospace;
       padding: 20px;
       margin: 0;
     }
-    #game { white-space: normal; line-height: 1.4; min-height: 40vh; }
-    .line { margin: 4px 0; }
+
+    /* Let content wrap naturally; we'll add our own blocks and inline chips */
+    #game {
+      white-space: normal;
+      line-height: 1.4;
+    }
+
+    .line {
+      margin: 4px 0;
+    }
+
+    /* Horizontal, wrapping lists for cities and countdown ticks */
     .inline-list {
-      display: flex; flex-wrap: wrap; gap: 6px 10px;
-      margin: 6px 0 12px; align-items: flex-start;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;           /* row gap, column gap */
+      margin: 6px 0 12px;
+      align-items: flex-start;
     }
+
     .inline-list .item {
-      display: inline-block; padding: 2px 6px;
+      display: inline-block;
+      padding: 2px 6px;
       border: 1px solid var(--border);
-      background: #0b0b0b; color: var(--fg);
-      border-radius: 3px; white-space: nowrap; font-size: 14px;
+      background: #0b0b0b;
+      color: var(--fg);
+      border-radius: 3px;
+      white-space: nowrap;     /* wrap between items, not inside */
+      font-size: 14px;
     }
+
     .inline-list.countdown .item {
-      color: var(--dim); border-style: dashed; font-size: 12px; padding: 1px 6px;
+      color: var(--dim);
+      border-style: dashed;
+      font-size: 12px;
+      padding: 1px 6px;
     }
-    /* Modal */
+
+    /* ===== Modal (custom popup window) ===== */
     .modal-overlay {
-      position: fixed; inset: 0; background: var(--overlay);
-      display: none; align-items: center; justify-content: center; z-index: 9999;
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      display: none; /* shown when asking */
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
     }
+
     .modal {
-      width: min(520px, 92vw); background: var(--panel);
+      width: min(520px, 92vw);
+      background: var(--panel);
       border: 1px solid var(--border);
-      box-shadow: 0 0 0 2px #003b1f inset, 0 10px 30px rgba(0,0,0,.6);
-      border-radius: 6px; overflow: hidden; color: var(--fg);
+      box-shadow: 0 0 0 2px #003b1f inset, 0 10px 30px rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      overflow: hidden;
+      color: var(--fg);
     }
+
     .modal__header {
-      padding: 10px 14px; background: #061d11; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: #061d11;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .modal__title { font-weight: bold; letter-spacing: .5px; color: var(--accent); }
-    .modal__close { color: var(--fg); background: none; border: none; font-size: 18px; cursor: pointer; line-height: 1; }
-    .modal__body { padding: 16px 14px 6px; }
-    .modal__message { margin: 0 0 10px 0; color: var(--fg); }
+
+    .modal__title {
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+    }
+
+    .modal__close {
+      color: var(--fg);
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal__body {
+      padding: 16px 14px 6px;
+    }
+
+    .modal__message {
+      margin: 0 0 10px 0;
+      color: var(--fg);
+    }
+
     .modal__input {
-      width: 100%; background: #0b0b0b; color: var(--fg);
-      border: 1px solid var(--border); padding: 10px 12px; border-radius: 4px;
-      font-family: inherit; font-size: 16px; outline: none;
-    }
-    .modal__input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,156,.2); }
-    .modal__error { color: var(--danger); margin-top: 8px; min-height: 1.2em; }
-    .modal__footer { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 14px 14px; border-top: 1px solid var(--border); }
-    .btn { cursor: pointer; font-family: inherit; font-size: 14px; letter-spacing: .4px; border-radius: 4px; padding: 8px 12px; border: 1px solid var(--border); background: #0b0b0b; color: var(--fg); }
-    .btn--primary { border-color: #015c38; background: #06261a; color: var(--accent); }
-    .btn:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
-
-    #game::after {
-      content: "▋"; margin-left: 6px;
-      animation: blink 1.1s steps(2, start) infinite; color: var(--dim);
-    }
-    @keyframes blink { to { visibility: hidden; } }
-
-    /* Error banner */
-    #jsError {
-      background: #220000; color: #ff9090; border: 1px solid #662222;
-      padding: 10px 12px; border-radius: 6px; margin: 10px 0; display: none; white-space: pre-wrap;
-    }
-  </style>
-</head>
-<body>
-  <noscript>
-    <div style="background:#220; color:#fcc; padding:10px; border:1px solid #633; border-radius:6px;">
-      JavaScript is disabled. Enable it to run the game.
-    </div>
-  </noscript>
-
-  <div id="game" aria-live="polite">Initializing...</div>
-  <div id="jsError"></div>
-
-  <!-- Modal -->
-  <div class="modal-overlay" id="modalOverlay" aria-modal="true" role="dialog" aria-labelledby="modalTitle">
-    <div class="modal">
-      <div class="modal__header">
-        <div class="modal__title" id="modalTitle">SYSTEM QUERY</div>
-        <button class="modal__close" id="modalCloseBtn" aria-label="Cancel (Esc)">&times;</button>
-      </div>
-      <div class="modal__body">
-        <p class="modal__message" id="modalMessage"></p>
-        <input type="text" class="modal__input" id="modalInput" placeholder="" />
-        <div class="modal__error" id="modalError" aria-live="assertive"></div>
-      </div>
-      <div class="modal__footer">
-        <button class="btn" id="modalCancel">Cancel (Esc)</button>
-        <button class="btn btn--primary" id="modalOk">OK (Enter)</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-  // ES5 COMPATIBLE JAVASCRIPT ONLY
-  (function () {
-    var gameElement = document.getElementById('game');
-    var errorBox = document.getElementById('jsError');
-
-    // ---- Simple on-page error reporting ----
-    window.addEventListener('error', function (e) {
-      showError('Error: ' + e.message + '\n@ ' + e.filename + ':' + e.lineno + ':' + e.colno);
-    });
-    window.addEventListener('unhandledrejection', function (e) {
-      showError('Unhandled promise rejection: ' + e.reason);
-    });
-    function showError(msg) {
-      try {
-        errorBox.style.display = 'block';
-        errorBox.textContent = String(msg || 'Unknown error');
+      width: 100%;
+      background: #0b0b0b;
+      color: var(--fg);
