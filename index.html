@@ -355,7 +355,7 @@
 
       setTimeout(() => {
         // CHANGED: This line now appears only after the player says "yes"
-        displayMessage('China has launched its first missile.');
+        displayMessage('China has launched a nuclear missile.');
 
         setTimeout(() => {
           displayMessage('The missile will hit San Francisco in 25 minutes.');
@@ -370,7 +370,7 @@
                   if (val === '') return 'Please enter a number (0 or more).';
                   const n = Number(val);
                   if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
-                  if (n > 1000) return 'That is too many for this simulation (max 1000).';
+                  if (n > 50) return 'That is too many for this simulation (max 50).';
                   return true;
                 },
               }
