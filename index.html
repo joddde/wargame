@@ -24,9 +24,41 @@
       margin: 0;
     }
 
+    /* Let content wrap naturally; we'll add our own blocks and inline chips */
     #game {
-      white-space: pre-wrap;
+      white-space: normal;
       line-height: 1.4;
+    }
+
+    .line {
+      margin: 4px 0;
+    }
+
+    /* Horizontal, wrapping lists for cities and countdown ticks */
+    .inline-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;           /* row gap, column gap */
+      margin: 6px 0 12px;
+      align-items: flex-start;
+    }
+
+    .inline-list .item {
+      display: inline-block;
+      padding: 2px 6px;
+      border: 1px solid var(--border);
+      background: #0b0b0b;
+      color: var(--fg);
+      border-radius: 3px;
+      white-space: nowrap;     /* wrap between items, not inside */
+      font-size: 14px;
+    }
+
+    .inline-list.countdown .item {
+      color: var(--dim);
+      border-style: dashed;
+      font-size: 12px;
+      padding: 1px 6px;
     }
 
     /* ===== Modal (custom popup window) ===== */
@@ -175,12 +207,34 @@
   <script>
     const gameElement = document.getElementById('game');
 
-    function displayMessage(message) {
-      gameElement.innerText += message + '\n';
-      // Keep scrolled to bottom for new messages
+    function scrollToBottom() {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
       });
+    }
+
+    // Block line for narrative text
+    function displayMessage(message) {
+      const line = document.createElement('div');
+      line.className = 'line';
+      line.textContent = message;
+      gameElement.appendChild(line);
+      scrollToBottom();
+    }
+
+    // Horizontal, wrapping list for items (cities, ticks)
+    function addInlineList(items, extraClass = '') {
+      const list = document.createElement('div');
+      list.className = `inline-list ${extraClass}`.trim();
+      for (const txt of items) {
+        const span = document.createElement('span');
+        span.className = 'item';
+        span.textContent = txt;
+        list.appendChild(span);
+      }
+      gameElement.appendChild(list);
+      scrollToBottom();
+      return list;
     }
 
     // ---------- Custom popup window (modal) ----------
@@ -202,7 +256,6 @@
           inputEl.placeholder = placeholder;
           errorEl.textContent = '';
           overlay.style.display = 'flex';
-          // Slight delay so focusing works reliably after display change
           setTimeout(() => inputEl.focus(), 0);
           document.addEventListener('keydown', onKey);
           okBtn.addEventListener('click', onOk);
@@ -283,12 +336,17 @@
           const missiles = Number(missilesStr);
           if (missiles > 0) {
             displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
+
+            // Render the target cities horizontally
             listCities(missiles);
 
+            // Countdown to impact as horizontal ticks
             countdownToImpact(25, () => {
               displayMessage('China has launched 50 nuclear missiles at the USA, Canada, and Mexico.');
               displayMessage('The largest 50 cities in North America are the targets.');
               displayCities(50);
+
+              // Second countdown as horizontal ticks
               countdownToImpact(20, estimateSurvivors);
             });
           } else {
@@ -304,9 +362,11 @@
         "Beijing","Shanghai","Guangzhou","Shenzhen","Tianjin","Chongqing","Nanjing","Wuhan","Chengdu","Xi'an",
         "Pyongyang","Hamhung","Chongjin","Nampo","Wonsan","Sinuiju","Tanchon","Kaechon","Kaesong","Sariwon"
       ];
+      const output = [];
       for (let i = 0; i < missiles; i++) {
-        displayMessage(cities[i % cities.length]);
+        output.push(cities[i % cities.length]);
       }
+      addInlineList(output); // horizontal, wrapping
     }
 
     function displayCities(number) {
@@ -326,22 +386,34 @@
         "Québec","San Salvador","Fresno","Hamilton","Victoria de Durango","Sacramento","San Pedro Sula",
         "Toluca","Ciudad López Mateos","Cuautitlán Izcalli"
       ];
+      const output = [];
       for (let i = 0; i < number; i++) {
-        displayMessage(cities[i % cities.length]);
+        output.push(cities[i % cities.length]);
       }
+      addInlineList(output); // horizontal, wrapping
     }
 
     function countdownToImpact(minutes, callback) {
-      // NOTE: This displays "minutes" every second for dramatic pacing like your original code.
+      // One textual line for context (keeps the story readable)
+      displayMessage('Time until impact (minutes):');
+
+      // Horizontal ticking chips like: [25] [24] [23] ...
+      const list = addInlineList([], 'countdown');
+
       const interval = setInterval(() => {
         if (minutes > 0) {
-          displayMessage(`Time until impact: ${minutes} minutes`);
+          const tick = document.createElement('span');
+          tick.className = 'item';
+          tick.textContent = String(minutes);
+          tick.setAttribute('aria-label', `Time until impact: ${minutes} minutes`);
+          list.appendChild(tick);
+          scrollToBottom();
           minutes--;
         } else {
           clearInterval(interval);
           callback();
         }
-      }, 500);
+      }, 500); // using your modified pacing
     }
 
     function estimateSurvivors() {
