@@ -207,6 +207,21 @@
   <script>
     const gameElement = document.getElementById('game');
 
+    /* ===== Survivors model (tunable) ===== */
+    const WORLD_POP = 8_000_000_000;   // ~8B
+    const LETHALITY_K = 0.0005;        // exponential drop per missile
+    const SURVIVOR_FLOOR = 1_000_000;  // never go below 1M
+
+    function formatNumber(n) {
+      try { return n.toLocaleString(); } catch { return String(n); }
+    }
+
+    function survivorsFromMissiles(totalMissiles) {
+      // Survivors = WORLD_POP * e^(-k * totalMissiles), floored at SURVIVOR_FLOOR
+      const est = Math.round(WORLD_POP * Math.exp(-LETHALITY_K * totalMissiles));
+      return Math.max(est, SURVIVOR_FLOOR);
+    }
+
     function scrollToBottom() {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
@@ -349,7 +364,10 @@
               displayCities(chinaMissiles);
 
               // Second countdown as horizontal ticks
-              countdownToImpact(20, estimateSurvivors);
+              countdownToImpact(20, () => {
+                const totalMissiles = missiles + chinaMissiles;
+                estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles });
+              });
             });
           } else {
             displayMessage('You have chosen not to launch any missiles.');
@@ -361,8 +379,8 @@
 
     function listCities(missiles) {
       const cities = [
-        "Beijing","Shanghai","Guangzhou","Shenzhen","Tianjin","Chongqing","Nanjing","Wuhan","Chengdu","Xi'an",
-        "Pyongyang","Hamhung","Chongjin","Nampo","Wonsan","Sinuiju","Tanchon","Kaechon","Kaesong","Sariwon"
+        'Beijing','Shanghai','Guangzhou','Shenzhen','Tianjin','Chongqing','Nanjing','Wuhan','Chengdu',"Xi'an",
+        'Pyongyang','Hamhung','Chongjin','Nampo','Wonsan','Sinuiju','Tanchon','Kaechon','Kaesong','Sariwon'
       ];
       const output = [];
       for (let i = 0; i < missiles; i++) {
@@ -373,20 +391,20 @@
 
     function displayCities(number) {
       const cities = [
-        "Mexico City","New York City","Los Angeles","Toronto","Chicago","Houston","Havana","Tijuana",
-        "Montreal","Phoenix","Ecatepec de Morelos","León","Philadelphia","Puebla","Juárez","Zapopan",
-        "San Antonio","Calgary","Guadalajara","San Diego","Dallas","Guatemala City","Port-au-Prince",
-        "Monterrey","Tegucigalpa","Edmonton","Panama City","Nezahualcóyotl","Ottawa","Managua",
-        "Santo Domingo","Austin","Jacksonville","San Jose","Fort Worth","Chihuahua","Mérida",
-        "Naucalpan","Toluca","Columbus","Charlotte","Cancún","Indianapolis","Saltillo","Aguascalientes",
-        "Hermosillo","Mexicali","Seattle","Denver","El Paso","Detroit","Culiacán","Guadalupe",
-        "Acapulco de Juárez","Mississauga","Boston","Memphis","Tlalnepantla","New South Memphis",
-        "North York","Portland","Winnipeg","Oklahoma City","Santiago de Querétaro","Las Vegas",
-        "Baltimore","Coyoacán","Santa María Chimalhuacán","Torreón","Washington, D.C.","Milwaukee",
-        "Vancouver","Scarborough","Morelia","Reynosa","New Kingston","Tlaquepaque","Tlalpan",
-        "South Boston","Albuquerque","Santiago de Cuba","Tuxtla","Cuauhtémoc","Tucson","Nashville",
-        "Québec","San Salvador","Fresno","Hamilton","Victoria de Durango","Sacramento","San Pedro Sula",
-        "Toluca","Ciudad López Mateos","Cuautitlán Izcalli"
+        'Mexico City','New York City','Los Angeles','Toronto','Chicago','Houston','Havana','Tijuana',
+        'Montreal','Phoenix','Ecatepec de Morelos','León','Philadelphia','Puebla','Juárez','Zapopan',
+        'San Antonio','Calgary','Guadalajara','San Diego','Dallas','Guatemala City','Port-au-Prince',
+        'Monterrey','Tegucigalpa','Edmonton','Panama City','Nezahualcóyotl','Ottawa','Managua',
+        'Santo Domingo','Austin','Jacksonville','San Jose','Fort Worth','Chihuahua','Mérida',
+        'Naucalpan','Toluca','Columbus','Charlotte','Cancún','Indianapolis','Saltillo','Aguascalientes',
+        'Hermosillo','Mexicali','Seattle','Denver','El Paso','Detroit','Culiacán','Guadalupe',
+        'Acapulco de Juárez','Mississauga','Boston','Memphis','Tlalnepantla','New South Memphis',
+        'North York','Portland','Winnipeg','Oklahoma City','Santiago de Querétaro','Las Vegas',
+        'Baltimore','Coyoacán','Santa María Chimalhuacán','Torreón','Washington, D.C.','Milwaukee',
+        'Vancouver','Scarborough','Morelia','Reynosa','New Kingston','Tlaquepaque','Tlalpan',
+        'South Boston','Albuquerque','Santiago de Cuba','Tuxtla','Cuauhtémoc','Tucson','Nashville',
+        'Québec','San Salvador','Fresno','Hamilton','Victoria de Durango','Sacramento','San Pedro Sula',
+        'Toluca','Ciudad López Mateos','Cuautitlán Izcalli'
       ];
       const output = [];
       for (let i = 0; i < number; i++) {
@@ -398,7 +416,6 @@
     function countdownToImpact(minutes, callback) {
       // One textual line for context (keeps the story readable)
       displayMessage('Time until impact (minutes):');
-
       // Horizontal ticking chips like: [25] [24] [23] ...
       const list = addInlineList([], 'countdown');
 
@@ -415,13 +432,16 @@
           clearInterval(interval);
           callback();
         }
-      }, 500); // using your modified pacing
+      }, 500); // pacing: 0.5s per "minute"
     }
 
-    function estimateSurvivors() {
-      displayMessage('Estimating the number of people that will still be alive on Earth one year after a nuclear exchange between the United States and China...');
+    // UPDATED: survivors depend on total missiles (yours + China's)
+    function estimateSurvivors(totalMissiles, breakdown = { your: 0, china: 0 }) {
+      displayMessage('Estimating the number of people that will still be alive on Earth one year after the exchange...');
       setTimeout(() => {
-        displayMessage('Estimated survivors: Approximately 500 million people.');
+        const survivors = survivorsFromMissiles(totalMissiles);
+        displayMessage(`Total missiles launched: ${breakdown.your} (you) + ${breakdown.china} (China) = ${totalMissiles}.`);
+        displayMessage(`Estimated survivors: ~${formatNumber(survivors)} people.`);
       }, 2000);
     }
 
