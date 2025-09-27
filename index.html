@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data:" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Text-Based Game</title>
   <style>
@@ -24,168 +25,78 @@
       margin: 0;
     }
 
-    /* Let content wrap naturally; we'll add our own blocks and inline chips */
     #game {
       white-space: normal;
       line-height: 1.4;
+      min-height: 40vh;
     }
 
-    .line {
-      margin: 4px 0;
-    }
+    .line { margin: 4px 0; }
 
-    /* Horizontal, wrapping lists for cities and countdown ticks */
     .inline-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 10px;           /* row gap, column gap */
-      margin: 6px 0 12px;
-      align-items: flex-start;
+      display: flex; flex-wrap: wrap;
+      gap: 6px 10px;
+      margin: 6px 0 12px; align-items: flex-start;
     }
-
     .inline-list .item {
-      display: inline-block;
-      padding: 2px 6px;
+      display: inline-block; padding: 2px 6px;
       border: 1px solid var(--border);
-      background: #0b0b0b;
-      color: var(--fg);
-      border-radius: 3px;
-      white-space: nowrap;     /* wrap between items, not inside */
-      font-size: 14px;
+      background: #0b0b0b; color: var(--fg);
+      border-radius: 3px; white-space: nowrap; font-size: 14px;
     }
-
     .inline-list.countdown .item {
-      color: var(--dim);
-      border-style: dashed;
-      font-size: 12px;
-      padding: 1px 6px;
+      color: var(--dim); border-style: dashed; font-size: 12px; padding: 1px 6px;
     }
 
-    /* ===== Modal (custom popup window) ===== */
+    /* Modal */
     .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: var(--overlay);
-      display: none; /* shown when asking */
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
+      position: fixed; inset: 0; background: var(--overlay);
+      display: none; align-items: center; justify-content: center; z-index: 9999;
     }
-
     .modal {
-      width: min(520px, 92vw);
-      background: var(--panel);
+      width: min(520px, 92vw); background: var(--panel);
       border: 1px solid var(--border);
-      box-shadow: 0 0 0 2px #003b1f inset, 0 10px 30px rgba(0, 0, 0, 0.6);
-      border-radius: 6px;
-      overflow: hidden;
-      color: var(--fg);
+      box-shadow: 0 0 0 2px #003b1f inset, 0 10px 30px rgba(0,0,0,.6);
+      border-radius: 6px; overflow: hidden; color: var(--fg);
     }
-
     .modal__header {
-      padding: 10px 14px;
-      background: #061d11;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      padding: 10px 14px; background: #061d11; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
     }
-
-    .modal__title {
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      color: var(--accent);
-    }
-
-    .modal__close {
-      color: var(--fg);
-      background: transparent;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .modal__body {
-      padding: 16px 14px 6px;
-    }
-
-    .modal__message {
-      margin: 0 0 10px 0;
-      color: var(--fg);
-    }
-
+    .modal__title { font-weight: bold; letter-spacing: .5px; color: var(--accent); }
+    .modal__close { color: var(--fg); background: none; border: none; font-size: 18px; cursor: pointer; line-height: 1; }
+    .modal__body { padding: 16px 14px 6px; }
+    .modal__message { margin: 0 0 10px 0; color: var(--fg); }
     .modal__input {
-      width: 100%;
-      background: #0b0b0b;
-      color: var(--fg);
-      border: 1px solid var(--border);
-      padding: 10px 12px;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 16px;
-      outline: none;
+      width: 100%; background: #0b0b0b; color: var(--fg);
+      border: 1px solid var(--border); padding: 10px 12px; border-radius: 4px;
+      font-family: inherit; font-size: 16px; outline: none;
     }
+    .modal__input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,255,156,.2); }
+    .modal__error { color: var(--danger); margin-top: 8px; min-height: 1.2em; }
+    .modal__footer { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 14px 14px; border-top: 1px solid var(--border); }
+    .btn { cursor: pointer; font-family: inherit; font-size: 14px; letter-spacing: .4px; border-radius: 4px; padding: 8px 12px; border: 1px solid var(--border); background: #0b0b0b; color: var(--fg); }
+    .btn--primary { border-color: #015c38; background: #06261a; color: var(--accent); }
+    .btn:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-    .modal__input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(0, 255, 156, 0.2);
-    }
-
-    .modal__error {
-      color: var(--danger);
-      margin-top: 8px;
-      min-height: 1.2em;
-    }
-
-    .modal__footer {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      padding: 12px 14px 14px;
-      border-top: 1px solid var(--border);
-    }
-
-    .btn {
-      appearance: none;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 14px;
-      letter-spacing: 0.4px;
-      border-radius: 4px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      background: #0b0b0b;
-      color: var(--fg);
-    }
-
-    .btn--primary {
-      border-color: #015c38;
-      background: #06261a;
-      color: var(--accent);
-    }
-
-    .btn:focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    /* Subtle caret/terminal vibe */
     #game::after {
-      content: "▋";
-      margin-left: 6px;
-      animation: blink 1.1s steps(2, start) infinite;
-      color: var(--dim);
+      content: "▋"; margin-left: 6px;
+      animation: blink 1.1s steps(2, start) infinite; color: var(--dim);
     }
-    @keyframes blink {
-      to { visibility: hidden; }
+    @keyframes blink { to { visibility: hidden; } }
+
+    /* Error banner */
+    #jsError {
+      background: #220000; color: #ff9090; border: 1px solid #662222;
+      padding: 10px 12px; border-radius: 6px; margin: 10px 0; display: none; white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
   <div id="game" aria-live="polite"></div>
+  <div id="jsError"></div>
 
-  <!-- Modal (custom popup window) -->
+  <!-- Modal -->
   <div class="modal-overlay" id="modalOverlay" aria-modal="true" role="dialog" aria-labelledby="modalTitle">
     <div class="modal">
       <div class="modal__header">
@@ -205,7 +116,20 @@
   </div>
 
   <script>
+  'use strict';
+
+  (function () {
     const gameElement = document.getElementById('game');
+    const errorBox = document.getElementById('jsError');
+
+    /* ===== Global error reporting to the page ===== */
+    window.addEventListener('error', (e) => showError(`Error: ${e.message}\n@ ${e.filename}:${e.lineno}:${e.colno}`));
+    window.addEventListener('unhandledrejection', (e) => showError(`Unhandled promise rejection: ${e.reason}`));
+    function showError(msg) {
+      errorBox.style.display = 'block';
+      errorBox.textContent = String(msg || 'Unknown error');
+      console.error(msg);
+    }
 
     /* ===== Survivors model (tunable) ===== */
     const WORLD_POP = 8_000_000_000;   // ~8B
@@ -221,7 +145,6 @@
     }
 
     function survivorsFromMissiles(totalMissiles) {
-      // Survivors = WORLD_POP * e^(-k * totalMissiles), floored at SURVIVOR_FLOOR
       const est = Math.round(WORLD_POP * Math.exp(-LETHALITY_K * totalMissiles));
       return Math.max(est, SURVIVOR_FLOOR);
     }
@@ -232,7 +155,6 @@
       });
     }
 
-    // Block line for narrative text
     function displayMessage(message) {
       const line = document.createElement('div');
       line.className = 'line';
@@ -241,7 +163,6 @@
       scrollToBottom();
     }
 
-    // Horizontal, wrapping list for items (cities, ticks)
     function addInlineList(items, extraClass = '') {
       const list = document.createElement('div');
       list.className = `inline-list ${extraClass}`.trim();
@@ -256,7 +177,7 @@
       return list;
     }
 
-    // ---------- Custom popup window (modal) ----------
+    /* ---------- Modal ---------- */
     function askQuestion(message, { placeholder = '', validate = null } = {}) {
       return new Promise((resolve) => {
         const overlay = document.getElementById('modalOverlay');
@@ -286,3 +207,14 @@
           overlay.style.display = 'none';
           document.removeEventListener('keydown', onKey);
           okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          closeBtn.removeEventListener('click', onCancel);
+        }
+
+        function onKey(e) {
+          if (e.key === 'Enter') onOk();
+          if (e.key === 'Escape') onCancel();
+        }
+
+        function onOk() {
+          if (settled) return;
