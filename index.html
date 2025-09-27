@@ -28,7 +28,6 @@
     #game {
       white-space: normal;
       line-height: 1.4;
-      min-height: 40vh;
     }
 
     .line {
@@ -184,10 +183,6 @@
   </style>
 </head>
 <body>
-  <noscript>
-    <p style="color:#ff4d4d">JavaScript is disabled, so the game cannot run.</p>
-  </noscript>
-
   <div id="game" aria-live="polite"></div>
 
   <!-- Modal (custom popup window) -->
@@ -210,12 +205,6 @@
   </div>
 
   <script>
-    // ======= Configurable pacing =======
-    const STORY_DELAY_1_MS = 5000; // initial delay before impact notice
-    const STORY_DELAY_2_MS = 5000; // delay before the question popup
-    const COUNTDOWN_TICK_MS = 500; // 0.5s per displayed "minute"
-
-    // ======= Helpers =======
     const gameElement = document.getElementById('game');
 
     function scrollToBottom() {
@@ -224,6 +213,7 @@
       });
     }
 
+    // Block line for narrative text
     function displayMessage(message) {
       const line = document.createElement('div');
       line.className = 'line';
@@ -232,6 +222,7 @@
       scrollToBottom();
     }
 
+    // Horizontal, wrapping list for items (cities, ticks)
     function addInlineList(items, extraClass = '') {
       const list = document.createElement('div');
       list.className = `inline-list ${extraClass}`.trim();
@@ -246,7 +237,7 @@
       return list;
     }
 
-    // ======= Modal =======
+    // ---------- Custom popup window (modal) ----------
     function askQuestion(message, { placeholder = '', validate = null } = {}) {
       return new Promise((resolve) => {
         const overlay = document.getElementById('modalOverlay');
@@ -311,7 +302,63 @@
       });
     }
 
-    // ======= Game logic =======
+    // ---------- Game logic ----------
+    function startGame() {
+      gameElement.innerText = ''; // Clear previous game messages
+      displayMessage('*** IBM AS400 Terminal ***');
+      displayMessage('A nuclear missile has been launched from China.');
+
+      setTimeout(() => {
+        displayMessage('The missile will hit San Francisco in 25 minutes.');
+
+        setTimeout(async () => {
+          // Ask with custom popup window instead of prompt()
+          const missilesStr = await askQuestion(
+            'Do you want to launch nuclear missiles at China? If yes, how many?',
+            {
+              placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
+              validate: (val) => {
+                if (val === '') return 'Please enter a number (0 or more).';
+                const n = Number(val);
+                if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
+                if (n > 1000) return 'That is too many for this simulation (max 1000).';
+                return true;
+              },
+            }
+          );
+
+          if (missilesStr === null) {
+            displayMessage('You cancelled the launch decision.');
+            displayMessage('Game Over.');
+            return;
+          }
+
+          const missiles = Number(missilesStr);
+          if (missiles > 0) {
+            displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
+
+            // Render the target cities horizontally
+            listCities(missiles);
+
+            // Countdown to impact as horizontal ticks
+            countdownToImpact(25, () => {
+              // China launches double the player's missiles
+              const chinaMissiles = missiles * 2;
+              displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
+              displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
+              displayCities(chinaMissiles);
+
+              // Second countdown as horizontal ticks
+              countdownToImpact(20, estimateSurvivors);
+            });
+          } else {
+            displayMessage('You have chosen not to launch any missiles.');
+            displayMessage('Game Over.');
+          }
+        }, 5000);
+      }, 5000);
+    }
+
     function listCities(missiles) {
       const cities = [
         "Beijing","Shanghai","Guangzhou","Shenzhen","Tianjin","Chongqing","Nanjing","Wuhan","Chengdu","Xi'an",
@@ -321,7 +368,7 @@
       for (let i = 0; i < missiles; i++) {
         output.push(cities[i % cities.length]);
       }
-      addInlineList(output);
+      addInlineList(output); // horizontal, wrapping
     }
 
     function displayCities(number) {
@@ -345,33 +392,30 @@
       for (let i = 0; i < number; i++) {
         output.push(cities[i % cities.length]);
       }
-      addInlineList(output);
+      addInlineList(output); // horizontal, wrapping
     }
 
     function countdownToImpact(minutes, callback) {
+      // One textual line for context (keeps the story readable)
       displayMessage('Time until impact (minutes):');
+
+      // Horizontal ticking chips like: [25] [24] [23] ...
       const list = addInlineList([], 'countdown');
 
       const interval = setInterval(() => {
-        try {
-          if (minutes > 0) {
-            const tick = document.createElement('span');
-            tick.className = 'item';
-            tick.textContent = String(minutes);
-            tick.setAttribute('aria-label', `Time until impact: ${minutes} minutes`);
-            list.appendChild(tick);
-            scrollToBottom();
-            minutes--;
-          } else {
-            clearInterval(interval);
-            callback();
-          }
-        } catch (err) {
-          console.error('Countdown error:', err);
-          displayMessage('An error occurred in countdown. See console for details.');
+        if (minutes > 0) {
+          const tick = document.createElement('span');
+          tick.className = 'item';
+          tick.textContent = String(minutes);
+          tick.setAttribute('aria-label', `Time until impact: ${minutes} minutes`);
+          list.appendChild(tick);
+          scrollToBottom();
+          minutes--;
+        } else {
           clearInterval(interval);
+          callback();
         }
-      }, COUNTDOWN_TICK_MS);
+      }, 500); // using your modified pacing
     }
 
     function estimateSurvivors() {
@@ -381,64 +425,8 @@
       }, 2000);
     }
 
-    function startGame() {
-      // Clear and boot message
-      gameElement.textContent = '';
-      displayMessage('*** IBM AS400 Terminal ***');
-      displayMessage('Booting… (script is running)');
-      displayMessage('A nuclear missile has been launched from China.');
-
-      setTimeout(() => {
-        displayMessage('The missile will hit San Francisco in 25 minutes.');
-
-        setTimeout(async () => {
-          try {
-            const missilesStr = await askQuestion(
-              'Do you want to launch nuclear missiles at China? If yes, how many?',
-              {
-                placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
-                validate: (val) => {
-                  if (val === '') return 'Please enter a number (0 or more).';
-                  const n = Number(val);
-                  if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
-                  if (n > 1000) return 'That is too many for this simulation (max 1000).';
-                  return true;
-                },
-              }
-            );
-
-            if (missilesStr === null) {
-              displayMessage('You cancelled the launch decision.');
-              displayMessage('Game Over.');
-              return;
-            }
-
-            const missiles = Number(missilesStr);
-            if (missiles > 0) {
-              displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
-              listCities(missiles);
-
-              countdownToImpact(25, () => {
-                // China launches double the player's missiles
-                const chinaMissiles = missiles * 2;
-                displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
-                displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
-                displayCities(chinaMissiles);
-
-                countdownToImpact(20, estimateSurvivors);
-              });
-            } else {
-              displayMessage('You have chosen not to launch any missiles.');
-              displayMessage('Game Over.');
-            }
-          } catch (err) {
-            console.error('Game flow error:', err);
-            displayMessage('An error occurred. See console for details.');
-          }
-        }, STORY_DELAY_2_MS);
-      }, STORY_DELAY_1_MS);
-    }
-
-    // Robust boot: start when DOM is ready; also log to console
-    (function bootstrap() {
-      try {
+    // Start
+    startGame();
+  </script>
+</body>
+</html>
