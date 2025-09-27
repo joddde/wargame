@@ -24,7 +24,6 @@
       margin: 0;
     }
 
-    /* Let content wrap naturally; we'll add our own blocks and inline chips */
     #game {
       white-space: normal;
       line-height: 1.4;
@@ -34,11 +33,10 @@
       margin: 4px 0;
     }
 
-    /* Horizontal, wrapping lists for cities and countdown ticks */
     .inline-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px 10px;           /* row gap, column gap */
+      gap: 6px 10px;
       margin: 6px 0 12px;
       align-items: flex-start;
     }
@@ -50,7 +48,7 @@
       background: #0b0b0b;
       color: var(--fg);
       border-radius: 3px;
-      white-space: nowrap;     /* wrap between items, not inside */
+      white-space: nowrap;
       font-size: 14px;
     }
 
@@ -61,12 +59,11 @@
       padding: 1px 6px;
     }
 
-    /* ===== Modal (custom popup window) ===== */
     .modal-overlay {
       position: fixed;
       inset: 0;
       background: var(--overlay);
-      display: none; /* shown when asking */
+      display: none;
       align-items: center;
       justify-content: center;
       z-index: 9999;
@@ -170,7 +167,6 @@
       outline-offset: 2px;
     }
 
-    /* Subtle caret/terminal vibe */
     #game::after {
       content: "▋";
       margin-left: 6px;
@@ -185,7 +181,6 @@
 <body>
   <div id="game" aria-live="polite"></div>
 
-  <!-- Modal (custom popup window) -->
   <div class="modal-overlay" id="modalOverlay" aria-modal="true" role="dialog" aria-labelledby="modalTitle">
     <div class="modal">
       <div class="modal__header">
@@ -207,17 +202,15 @@
   <script>
     const gameElement = document.getElementById('game');
 
-    /* ===== Survivors model (tunable) ===== */
-    const WORLD_POP = 8_000_000_000;   // ~8B
-    const LETHALITY_K = 0.08;          // exponential drop per missile
-    const SURVIVOR_FLOOR = 1_000_000;  // never go below 1M
+    const WORLD_POP = 8_000_000_000;
+    const LETHALITY_K = 0.08;
+    const SURVIVOR_FLOOR = 1_000_000;
 
     function formatNumber(n) {
       try { return n.toLocaleString(); } catch { return String(n); }
     }
 
     function survivorsFromMissiles(totalMissiles) {
-      // Survivors = WORLD_POP * e^(-k * totalMissiles), floored at SURVIVOR_FLOOR
       const est = Math.round(WORLD_POP * Math.exp(-LETHALITY_K * totalMissiles));
       return Math.max(est, SURVIVOR_FLOOR);
     }
@@ -228,7 +221,6 @@
       });
     }
 
-    // Block line for narrative text
     function displayMessage(message) {
       const line = document.createElement('div');
       line.className = 'line';
@@ -237,8 +229,25 @@
       scrollToBottom();
     }
 
-    // Horizontal, wrapping list for items (cities, ticks)
+    // NEW: Add cities to list with a delay between each (.1s per city)
+    async function addInlineListWithDelay(items, extraClass = '') {
+      const list = document.createElement('div');
+      list.className = `inline-list ${extraClass}`.trim();
+      gameElement.appendChild(list);
+      scrollToBottom();
+      for (const txt of items) {
+        await new Promise(res => setTimeout(res, 100));
+        const span = document.createElement('span');
+        span.className = 'item';
+        span.textContent = txt;
+        list.appendChild(span);
+        scrollToBottom();
+      }
+      return list;
+    }
+
     function addInlineList(items, extraClass = '') {
+      // Original, immediate version for countdown and other uses
       const list = document.createElement('div');
       list.className = `inline-list ${extraClass}`.trim();
       for (const txt of items) {
@@ -252,7 +261,6 @@
       return list;
     }
 
-    // ---------- Custom popup window (modal) ----------
     function askQuestion(message, { placeholder = '', validate = null } = {}) {
       return new Promise((resolve) => {
         const overlay = document.getElementById('modalOverlay');
@@ -317,13 +325,10 @@
       });
     }
 
-    // ---------- Game logic ----------
-    // CHANGED: Make async and ask to play before showing the missile narrative.
     async function startGame() {
-      gameElement.innerText = ''; // Clear previous game messages
+      gameElement.innerText = '';
       displayMessage('*** IBM AS400 Terminal ***');
 
-      // Ask if the player would like to play a game
       const playAnswer = await askQuestion(
         'Would you like to play a game? (yes/no)',
         {
@@ -350,18 +355,15 @@
         return;
       }
 
-      // Proceed with the scenario only if the player agreed to play
       displayMessage('Initializing scenario...');
 
       setTimeout(() => {
-        // CHANGED: This line now appears only after the player says "yes"
         displayMessage('China has launched a nuclear missile.');
 
         setTimeout(() => {
           displayMessage('The missile will hit San Francisco in 25 minutes.');
 
           setTimeout(async () => {
-            // Ask with custom popup window instead of prompt()
             const missilesStr = await askQuestion(
               'Do you want to launch nuclear missiles at China? If yes, how many?',
               {
@@ -386,22 +388,22 @@
             if (missiles > 0) {
               displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
 
-              // Render the target cities horizontally
-              listCities(missiles);
+              await listCities(missiles);
 
-              // Countdown to impact as horizontal ticks
               countdownToImpact(25, () => {
-                // China launches double the player's missiles
                 const chinaMissiles = missiles * 2;
                 displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
-                displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
-                displayCities(chinaMissiles);
 
-                // Second countdown as horizontal ticks
-                countdownToImpact(20, () => {
-                  const totalMissiles = missiles + chinaMissiles;
-                  estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles });
-                });
+                setTimeout(async () => {
+                  displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
+                  await displayCities(chinaMissiles);
+
+                  countdownToImpact(20, () => {
+                    // ADD 1 to China's missile count for the initial strike
+                    const totalMissiles = missiles + chinaMissiles + 1;
+                    estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles + 1 });
+                  });
+                }, 2000); // 2 second pause here
               });
             } else {
               displayMessage('You have chosen not to launch any missiles.');
@@ -412,19 +414,28 @@
       }, 1000);
     }
 
-    function listCities(missiles) {
+    // listCities and displayCities now use addInlineListWithDelay
+    async function listCities(missiles) {
       const cities = [
         'Beijing','Shanghai','Guangzhou','Shenzhen','Tianjin','Chongqing','Nanjing','Wuhan','Chengdu',"Xi'an",
-        'Pyongyang','Hamhung','Chongjin','Nampo','Wonsan','Sinuiju','Tanchon','Kaechon','Kaesong','Sariwon'
+        'Pyongyang','Hamhung','Chongjin','Nampo','Wonsan','Sinuiju','Tanchon','Kaechon','Kaesong','Sariwon',
+        'Shenyang','Suzhou','Harbin','Qingdao','Dalian','Jinan','Hangzhou','Fuzhou','Zhengzhou','Changsha',
+        'Shijiazhuang','Ürümqi','Ningbo','Taiyuan','Xiamen','Changchun','Kunming','Hefei','Tangshan','Baotou',
+        'Yantai','Taiyuan','Luoyang','Handan','Nanchang','Xuzhou','Lanzhou','Huainan','Jilin','Zibo',
+        'Hohhot','Yinchuan','Baoji','Anshan','Weifang','Datong','Hengyang','Zhangjiakou','Linyi','Quanzhou',
+        'Liaoyang','Jiaozuo','Jiangmen','Shangqiu','Foshan','Dongguan','Maoming','Leshan','Jiujiang','Fuling',
+        'Panjin','Shaoyang','Jinzhou','Huangshi','Fuxin','Zhuzhou','Yueyang','Chenzhou','Haikou','Baoding',
+        'Bengbu','Jiamusi','Xiangtan','Sanmenxia','Tieling','Yanji','Jingzhou','Yuncheng','Chifeng','Zhangzhou',
+        'Yibin','Pingdingshan','Heze','Liaocheng','Jingmen','Yancheng','Yuxi','Mudanjiang','Yangzhou','Wuhu'
       ];
       const output = [];
       for (let i = 0; i < missiles; i++) {
         output.push(cities[i % cities.length]);
       }
-      addInlineList(output); // horizontal, wrapping
+      await addInlineListWithDelay(output);
     }
 
-    function displayCities(number) {
+    async function displayCities(number) {
       const cities = [
         'Mexico City','New York City','Los Angeles','Toronto','Chicago','Houston','Havana','Tijuana',
         'Montreal','Phoenix','Ecatepec de Morelos','León','Philadelphia','Puebla','Juárez','Zapopan',
@@ -439,19 +450,18 @@
         'Vancouver','Scarborough','Morelia','Reynosa','New Kingston','Tlaquepaque','Tlalpan',
         'South Boston','Albuquerque','Santiago de Cuba','Tuxtla','Cuauhtémoc','Tucson','Nashville',
         'Québec','San Salvador','Fresno','Hamilton','Victoria de Durango','Sacramento','San Pedro Sula',
-        'Toluca','Ciudad López Mateos','Cuautitlán Izcalli'
+        'Toluca','Ciudad López Mateos','Cuautitlán Izcalli','St. Louis','Kansas City','Oakland',
+        'Minneapolis','San Juan'
       ];
       const output = [];
       for (let i = 0; i < number; i++) {
         output.push(cities[i % cities.length]);
       }
-      addInlineList(output); // horizontal, wrapping
+      await addInlineListWithDelay(output);
     }
 
     function countdownToImpact(minutes, callback) {
-      // One textual line for context (keeps the story readable)
       displayMessage('Time until impact (minutes):');
-      // Horizontal ticking chips like: [25] [24] [23] ...
       const list = addInlineList([], 'countdown');
 
       const interval = setInterval(() => {
@@ -467,10 +477,9 @@
           clearInterval(interval);
           callback();
         }
-      }, 500); // pacing: 0.5s per "minute"
+      }, 500);
     }
 
-    // UPDATED: survivors depend on total missiles (yours + China's)
     function estimateSurvivors(totalMissiles, breakdown = { your: 0, china: 0 }) {
       displayMessage('Estimating the number of people that will still be alive on Earth one year after the exchange...');
       setTimeout(() => {
@@ -480,7 +489,6 @@
       }, 2000);
     }
 
-    // Start
     startGame();
   </script>
 </body>
