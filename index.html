@@ -15,18 +15,15 @@
       --border: #1f1f1f;
       --accent: #00ff9c;
     }
-
     body {
       background-color: var(--bg);
       color: var(--fg);
-      font-family: 'Courier New', Courier, monospace;
+      font-family: "Courier New", Courier, monospace;
       padding: 20px;
       margin: 0;
     }
-
     #game { white-space: normal; line-height: 1.4; min-height: 40vh; }
     .line { margin: 4px 0; }
-
     .inline-list {
       display: flex; flex-wrap: wrap; gap: 6px 10px;
       margin: 6px 0 12px; align-items: flex-start;
@@ -40,7 +37,6 @@
     .inline-list.countdown .item {
       color: var(--dim); border-style: dashed; font-size: 12px; padding: 1px 6px;
     }
-
     /* Modal */
     .modal-overlay {
       position: fixed; inset: 0; background: var(--overlay);
@@ -86,7 +82,13 @@
   </style>
 </head>
 <body>
-  <div id="game" aria-live="polite"></div>
+  <noscript>
+    <div style="background:#220; color:#fcc; padding:10px; border:1px solid #633; border-radius:6px;">
+      JavaScript is disabled. Enable it to run the game.
+    </div>
+  </noscript>
+
+  <div id="game" aria-live="polite">Initializing...</div>
   <div id="jsError"></div>
 
   <!-- Modal -->
@@ -109,129 +111,19 @@
   </div>
 
   <script>
-  'use strict';
-
+  // ES5 COMPATIBLE JAVASCRIPT ONLY
   (function () {
-    const gameElement = document.getElementById('game');
-    const errorBox = document.getElementById('jsError');
+    var gameElement = document.getElementById('game');
+    var errorBox = document.getElementById('jsError');
 
-    /* ===== Global error reporting to the page ===== */
-    window.addEventListener('error', (e) => showError(`Error: ${e.message}\n@ ${e.filename}:${e.lineno}:${e.colno}`));
-    window.addEventListener('unhandledrejection', (e) => showError(`Unhandled promise rejection: ${e.reason}`));
+    // ---- Simple on-page error reporting ----
+    window.addEventListener('error', function (e) {
+      showError('Error: ' + e.message + '\n@ ' + e.filename + ':' + e.lineno + ':' + e.colno);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      showError('Unhandled promise rejection: ' + e.reason);
+    });
     function showError(msg) {
-      errorBox.style.display = 'block';
-      errorBox.textContent = String(msg || 'Unknown error');
-      console.error(msg);
-    }
-
-    /* ===== Survivors model (tunable) ===== */
-    const WORLD_POP = 8_000_000_000;   // ~8B
-    const LETHALITY_K = 0.08;          // exponential drop per missile
-    const SURVIVOR_FLOOR = 1_000_000;  // never go below 1M
-
-    /* ===== HARD CAPS ===== */
-    const MAX_USER_MISSILES = 200;   // You
-    const MAX_CHINA_MISSILES = 200;  // China (capped)
-
-    function formatNumber(n) {
-      try { return n.toLocaleString(); } catch { return String(n); }
-    }
-
-    function survivorsFromMissiles(totalMissiles) {
-      const est = Math.round(WORLD_POP * Math.exp(-LETHALITY_K * totalMissiles));
-      return Math.max(est, SURVIVOR_FLOOR);
-    }
-
-    function scrollToBottom() {
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      });
-    }
-
-    function displayMessage(message) {
-      const line = document.createElement('div');
-      line.className = 'line';
-      line.textContent = message;
-      gameElement.appendChild(line);
-      scrollToBottom();
-    }
-
-    function addInlineList(items, extraClass = '') {
-      const list = document.createElement('div');
-      list.className = `inline-list ${extraClass}`.trim();
-      for (const txt of items) {
-        const span = document.createElement('span');
-        span.className = 'item';
-        span.textContent = txt;
-        list.appendChild(span);
-      }
-      gameElement.appendChild(list);
-      scrollToBottom();
-      return list;
-    }
-
-    /* ---------- Modal ---------- */
-    function askQuestion(message, { placeholder = '', validate = null } = {}) {
-      return new Promise((resolve) => {
-        const overlay = document.getElementById('modalOverlay');
-        const msgEl = document.getElementById('modalMessage');
-        const inputEl = document.getElementById('modalInput');
-        const errorEl = document.getElementById('modalError');
-        const okBtn = document.getElementById('modalOk');
-        const cancelBtn = document.getElementById('modalCancel');
-        const closeBtn = document.getElementById('modalCloseBtn');
-
-        let settled = false;
-
-        function open() {
-          msgEl.textContent = message;
-          inputEl.value = '';
-          inputEl.placeholder = placeholder;
-          errorEl.textContent = '';
-          overlay.style.display = 'flex';
-          setTimeout(() => inputEl.focus(), 0);
-          document.addEventListener('keydown', onKey);
-          okBtn.addEventListener('click', onOk);
-          cancelBtn.addEventListener('click', onCancel);
-          closeBtn.addEventListener('click', onCancel);
-        }
-
-        function close() {
-          overlay.style.display = 'none';
-          document.removeEventListener('keydown', onKey);
-          okBtn.removeEventListener('click', onOk);
-          cancelBtn.removeEventListener('click', onCancel);
-          closeBtn.removeEventListener('click', onCancel);
-        }
-
-        function onKey(e) {
-          if (e.key === 'Enter') onOk();
-          if (e.key === 'Escape') onCancel();
-        }
-
-        function onOk() {
-          if (settled) return;
-          const value = inputEl.value.trim();
-          if (typeof validate === 'function') {
-            const result = validate(value);
-            if (result !== true) {
-              errorEl.textContent = result || 'Invalid input.';
-              return;
-            }
-          }
-          settled = true; close(); resolve(value);
-        }
-
-        function onCancel() {
-          if (settled) return;
-          settled = true; close(); resolve(null);
-        }
-
-        open();
-      });
-    }
-
-    /* ---------- City Lists (200 each) ---------- */
-    const CHINA_TOP_200 = [
-      "Shanghai","Beijing","Chongqing","Guangzhou","Shenzhen","Tianjin","Chengdu","Wuhan","Xi'an","Hangzhou",
-      "Nanjing","Suzhou","Zhengzhou","Qingdao","Shenyang","Harbin","Changsha","Dongguan","Foshan","Ningbo",
+      try {
+        errorBox.style.display = 'block';
+        errorBox.textContent = String(msg || 'Unknown error');
