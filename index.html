@@ -1,107 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text-Based Game</title>
-    <style>
-        body {
-            background-color: black;
-            color: green;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 20px;
-        }
-        #game {
-            white-space: pre-wrap;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Text-Based Game</title>
+  <style>
+    :root {
+      --bg: #000;
+      --fg: #00ff65;
+      --dim: #00c04e;
+      --danger: #ff4d4d;
+      --overlay: rgba(0, 0, 0, 0.8);
+      --panel: #0f0f0f;
+      --border: #1f1f1f;
+      --accent: #00ff9c;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--fg);
+      font-family: 'Courier New', Courier, monospace;
+      padding: 20px;
+      margin: 0;
+    }
+
+    #game {
+      white-space: pre-wrap;
+      line-height: 1.4;
+    }
+
+    /* ===== Modal (custom popup window) ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--overlay);
+      display: none; /* shown when asking */
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .modal {
+      width: min(520px, 92vw);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      box-shadow: 0 0 0 2px #003b1f inset, 0 10px 30px rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      overflow: hidden;
+      color: var(--fg);
+    }
+
+    .modal__header {
+      padding: 10px 14px;
+      background: #061d11;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal__title {
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+    }
+
+    .modal__close {
+      color: var(--fg);
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .modal__body {
+      padding: 16px 14px 6px;
+    }
+
+    .modal__message {
+      margin: 0 0 10px 0;
+      color: var(--fg);
+    }
+
+    .modal__input {
+      width: 100%;
+      background: #0b0b0b;
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 16px;
+      outline: none;
+    }
+
+    .modal__input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(0, 255, 156, 0.2);
+    }
+
+    .modal__error {
+      color: var(--danger);
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
+
+    .modal__footer {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn {
+      appearance: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      letter-spacing: 0.4px;
+      border-radius: 4px;
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: #0b0b0b;
+      color: var(--fg);
+    }
+
+    .btn--primary {
+      border-color: #015c38;
+      background: #06261a;
+      color: var(--accent);
+    }
+
+    .btn:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Subtle caret/terminal vibe */
+    #game::after {
+      content: "▋";
+      margin-left: 6px;
+      animation: blink 1.1s steps(2, start) infinite;
+      color: var(--dim);
+    }
+    @keyframes blink {
+      to { visibility: hidden; }
+    }
+  </style>
 </head>
 <body>
-    <div id="game"></div>
-    <script>
-        const gameElement = document.getElementById('game');
+  <div id="game" aria-live="polite"></div>
 
-        function displayMessage(message) {
-            gameElement.innerText += message + '\n';
+  <!-- Modal (custom popup window) -->
+  <div class="modal-overlay" id="modalOverlay" aria-modal="true" role="dialog" aria-labelledby="modalTitle">
+    <div class="modal">
+      <div class="modal__header">
+        <div class="modal__title" id="modalTitle">SYSTEM QUERY</div>
+        <button class="modal__close" id="modalCloseBtn" aria-label="Cancel (Esc)">&times;</button>
+      </div>
+      <div class="modal__body">
+        <p class="modal__message" id="modalMessage"></p>
+        <input type="text" class="modal__input" id="modalInput" placeholder="" />
+        <div class="modal__error" id="modalError" aria-live="assertive"></div>
+      </div>
+      <div class="modal__footer">
+        <button class="btn" id="modalCancel">Cancel (Esc)</button>
+        <button class="btn btn--primary" id="modalOk">OK (Enter)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const gameElement = document.getElementById('game');
+
+    function displayMessage(message) {
+      gameElement.innerText += message + '\n';
+      // Keep scrolled to bottom for new messages
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      });
+    }
+
+    // ---------- Custom popup window (modal) ----------
+    function askQuestion(message, { placeholder = '', validate = null } = {}) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('modalOverlay');
+        const msgEl = document.getElementById('modalMessage');
+        const inputEl = document.getElementById('modalInput');
+        const errorEl = document.getElementById('modalError');
+        const okBtn = document.getElementById('modalOk');
+        const cancelBtn = document.getElementById('modalCancel');
+        const closeBtn = document.getElementById('modalCloseBtn');
+
+        let settled = false;
+
+        function open() {
+          msgEl.textContent = message;
+          inputEl.value = '';
+          inputEl.placeholder = placeholder;
+          errorEl.textContent = '';
+          overlay.style.display = 'flex';
+          // Slight delay so focusing works reliably after display change
+          setTimeout(() => inputEl.focus(), 0);
+          document.addEventListener('keydown', onKey);
+          okBtn.addEventListener('click', onOk);
+          cancelBtn.addEventListener('click', onCancel);
+          closeBtn.addEventListener('click', onCancel);
         }
 
-        function startGame() {
-            gameElement.innerText = ''; // Clear previous game messages
-            displayMessage('*** IBM AS400 Terminal ***');
-            displayMessage('A nuclear missile has been launched from China.');
-            setTimeout(() => {
-                displayMessage('The missile will hit San Francisco in 25 minutes.');
-                setTimeout(() => {
-                    const missiles = prompt('Do you want to launch nuclear missiles at China? If yes, how many?');
-                    if (missiles) {
-                        displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
-                        listCities(missiles);
-                        countdownToImpact(25, () => {
-                            displayMessage('China has launched 50 nuclear missiles at the USA, Canada, and Mexico.');
-                            displayMessage('The largest 50 cities in North America are the targets.');
-                            displayCities(50);
-                            countdownToImpact(20, estimateSurvivors);
-                        });
-                    } else {
-                        displayMessage('You have chosen not to launch any missiles.');
-                        displayMessage('Game Over.');
-                    }
-                }, 1000);
-            }, 10000);
+        function close() {
+          overlay.style.display = 'none';
+          document.removeEventListener('keydown', onKey);
+          okBtn.removeEventListener('click', onOk);
+          cancelBtn.removeEventListener('click', onCancel);
+          closeBtn.removeEventListener('click', onCancel);
         }
 
-        function listCities(missiles) {
-            const cities = [
-                "Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Tianjin", "Chongqing", "Nanjing", "Wuhan", "Chengdu", "Xi'an",
-                "Pyongyang", "Hamhung", "Chongjin", "Nampo", "Wonsan", "Sinuiju", "Tanchon", "Kaechon", "Kaesong", "Sariwon"
-            ];
-            for (let i = 0; i < missiles; i++) {
-                displayMessage(cities[i % cities.length]);
+        function onKey(e) {
+          if (e.key === 'Enter') onOk();
+          if (e.key === 'Escape') onCancel();
+        }
+
+        function onOk() {
+          if (settled) return;
+          const value = inputEl.value.trim();
+          if (typeof validate === 'function') {
+            const result = validate(value);
+            if (result !== true) {
+              errorEl.textContent = result || 'Invalid input.';
+              return;
             }
+          }
+          settled = true;
+          close();
+          resolve(value);
         }
 
-        function displayCities(number) {
-            const cities = [
-                "Mexico City", "New York City", "Los Angeles", "Toronto", "Chicago", "Houston", "Havana", "Tijuana", 
-                "Montreal", "Phoenix", "Ecatepec de Morelos", "León", "Philadelphia", "Puebla", "Juárez", "Zapopan", 
-                "San Antonio", "Calgary", "Guadalajara", "San Diego", "Dallas", "Guatemala City", "Port-au-Prince", 
-                "Monterrey", "Tegucigalpa", "Edmonton", "Panama City", "Nezahualcóyotl", "Ottawa", "Managua", 
-                "Santo Domingo", "Austin", "Jacksonville", "San Jose", "Fort Worth", "Chihuahua", "Mérida", 
-                "Naucalpan", "Toluca", "Columbus", "Charlotte", "Cancún", "Indianapolis", "Saltillo", "Aguascalientes", 
-                "Hermosillo", "Mexicali", "Seattle", "Denver", "El Paso", "Detroit", "Culiacán", "Guadalupe", 
-                "Acapulco de Juárez", "Mississauga", "Boston", "Memphis", "Tlalnepantla", "New South Memphis", 
-                "North York", "Portland", "Winnipeg", "Oklahoma City", "Santiago de Querétaro", "Las Vegas", 
-                "Baltimore", "Coyoacán", "Santa María Chimalhuacán", "Torreón", "Washington, D.C.", "Milwaukee", 
-                "Vancouver", "Scarborough", "Morelia", "Reynosa", "New Kingston", "Tlaquepaque", "Tlalpan", 
-                "South Boston", "Albuquerque", "Santiago de Cuba", "Tuxtla", "Cuauhtémoc", "Tucson", "Nashville", 
-                "Québec", "San Salvador", "Fresno", "Hamilton", "Victoria de Durango", "Sacramento", "San Pedro Sula", 
-                "Toluca", "Ciudad López Mateos", "Cuautitlán Izcalli"
-            ];
-            for (let i = 0; i < number; i++) {
-                displayMessage(cities[i % cities.length]);
+        function onCancel() {
+          if (settled) return;
+          settled = true;
+          close();
+          resolve(null);
+        }
+
+        open();
+      });
+    }
+
+    // ---------- Game logic ----------
+    function startGame() {
+      gameElement.innerText = ''; // Clear previous game messages
+      displayMessage('*** IBM AS400 Terminal ***');
+      displayMessage('A nuclear missile has been launched from China.');
+
+      setTimeout(() => {
+        displayMessage('The missile will hit San Francisco in 25 minutes.');
+
+        setTimeout(async () => {
+          // Ask with custom popup window instead of prompt()
+          const missilesStr = await askQuestion(
+            'Do you want to launch nuclear missiles at China? If yes, how many?',
+            {
+              placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
+              validate: (val) => {
+                if (val === '') return 'Please enter a number (0 or more).';
+                const n = Number(val);
+                if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
+                if (n > 1000) return 'That is too many for this simulation (max 1000).';
+                return true;
+              },
             }
-        }
+          );
 
-        function countdownToImpact(minutes, callback) {
-            const interval = setInterval(() => {
-                if (minutes > 0) {
-                    displayMessage(`Time until impact: ${minutes} minutes`);
-                    minutes--;
-                } else {
-                    clearInterval(interval);
-                    callback();
-                }
-            }, 1000);
-        }
+          if (missilesStr === null) {
+            displayMessage('You cancelled the launch decision.');
+            displayMessage('Game Over.');
+            return;
+          }
 
-        function estimateSurvivors() {
-            displayMessage('Estimating the number of people that will still be alive on Earth one year after a nuclear exchange between the United States and China...');
-            setTimeout(() => {
-                displayMessage('Estimated survivors: Approximately 500 million people.');
-            }, 2000);
-        }
+          const missiles = Number(missilesStr);
+          if (missiles > 0) {
+            displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
+            listCities(missiles);
 
-        startGame();
-    </script>
+            countdownToImpact(25, () => {
+              displayMessage('China has launched 50 nuclear missiles at the USA, Canada, and Mexico.');
+              displayMessage('The largest 50 cities in North America are the targets.');
+              displayCities(50);
+              countdownToImpact(20, estimateSurvivors);
+            });
+          } else {
+            displayMessage('You have chosen not to launch any missiles.');
+            displayMessage('Game Over.');
+          }
+        }, 1000);
+      }, 10000);
+    }
+
+    function listCities(missiles) {
+      const cities = [
+        "Beijing","Shanghai","Guangzhou","Shenzhen","Tianjin","Chongqing","Nanjing","Wuhan","Chengdu","Xi'an",
+        "Pyongyang","Hamhung","Chongjin","Nampo","Wonsan","Sinuiju","Tanchon","Kaechon","Kaesong","Sariwon"
+      ];
+      for (let i = 0; i < missiles; i++) {
+        displayMessage(cities[i % cities.length]);
+      }
+    }
+
+    function displayCities(number) {
+      const cities = [
+        "Mexico City","New York City","Los Angeles","Toronto","Chicago","Houston","Havana","Tijuana",
+        "Montreal","Phoenix","Ecatepec de Morelos","León","Philadelphia","Puebla","Juárez","Zapopan",
+        "San Antonio","Calgary","Guadalajara","San Diego","Dallas","Guatemala City","Port-au-Prince",
+        "Monterrey","Tegucigalpa","Edmonton","Panama City","Nezahualcóyotl","Ottawa","Managua",
+        "Santo Domingo","Austin","Jacksonville","San Jose","Fort Worth","Chihuahua","Mérida",
+        "Naucalpan","Toluca","Columbus","Charlotte","Cancún","Indianapolis","Saltillo","Aguascalientes",
+        "Hermosillo","Mexicali","Seattle","Denver","El Paso","Detroit","Culiacán","Guadalupe",
+        "Acapulco de Juárez","Mississauga","Boston","Memphis","Tlalnepantla","New South Memphis",
+        "North York","Portland","Winnipeg","Oklahoma City","Santiago de Querétaro","Las Vegas",
+        "Baltimore","Coyoacán","Santa María Chimalhuacán","Torreón","Washington, D.C.","Milwaukee",
+        "Vancouver","Scarborough","Morelia","Reynosa","New Kingston","Tlaquepaque","Tlalpan",
+        "South Boston","Albuquerque","Santiago de Cuba","Tuxtla","Cuauhtémoc","Tucson","Nashville",
+        "Québec","San Salvador","Fresno","Hamilton","Victoria de Durango","Sacramento","San Pedro Sula",
+        "Toluca","Ciudad López Mateos","Cuautitlán Izcalli"
+      ];
+      for (let i = 0; i < number; i++) {
+        displayMessage(cities[i % cities.length]);
+      }
+    }
+
+    function countdownToImpact(minutes, callback) {
+      // NOTE: This displays "minutes" every second for dramatic pacing like your original code.
+      const interval = setInterval(() => {
+        if (minutes > 0) {
+          displayMessage(`Time until impact: ${minutes} minutes`);
+          minutes--;
+        } else {
+          clearInterval(interval);
+          callback();
+        }
+      }, 1000);
+    }
+
+    function estimateSurvivors() {
+      displayMessage('Estimating the number of people that will still be alive on Earth one year after a nuclear exchange between the United States and China...');
+      setTimeout(() => {
+        displayMessage('Estimated survivors: Approximately 500 million people.');
+      }, 2000);
+    }
+
+    // Start
+    startGame();
+  </script>
 </body>
 </html>
