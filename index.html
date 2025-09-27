@@ -209,7 +209,7 @@
 
     /* ===== Survivors model (tunable) ===== */
     const WORLD_POP = 8_000_000_000;   // ~8B
-    const LETHALITY_K = 0.08;        // exponential drop per missile
+    const LETHALITY_K = 0.08;          // exponential drop per missile
     const SURVIVOR_FLOOR = 1_000_000;  // never go below 1M
 
     function formatNumber(n) {
@@ -318,63 +318,98 @@
     }
 
     // ---------- Game logic ----------
-    function startGame() {
+    // CHANGED: Make async and ask to play before showing the missile narrative.
+    async function startGame() {
       gameElement.innerText = ''; // Clear previous game messages
       displayMessage('*** IBM AS400 Terminal ***');
-      displayMessage('A nuclear missile has been launched from China.');
+
+      // Ask if the player would like to play a game
+      const playAnswer = await askQuestion(
+        'Would you like to play a game? (yes/no)',
+        {
+          placeholder: 'yes or no',
+          validate: (val) => {
+            if (!val) return 'Please answer "yes" or "no".';
+            const v = val.trim().toLowerCase();
+            if (!['y', 'yes', 'n', 'no'].includes(v)) return 'Type "yes" or "no".';
+            return true;
+          },
+        }
+      );
+
+      if (playAnswer === null) {
+        displayMessage('Session cancelled.');
+        displayMessage('Goodbye.');
+        return;
+      }
+
+      const wantsToPlay = /^y(es)?$/i.test(playAnswer.trim());
+      if (!wantsToPlay) {
+        displayMessage('Understood. Maybe another time.');
+        displayMessage('Session ended.');
+        return;
+      }
+
+      // Proceed with the scenario only if the player agreed to play
+      displayMessage('Initializing scenario...');
 
       setTimeout(() => {
-        displayMessage('The missile will hit San Francisco in 25 minutes.');
+        // CHANGED: This line now appears only after the player says "yes"
+        displayMessage('China has launched its first missile.');
 
-        setTimeout(async () => {
-          // Ask with custom popup window instead of prompt()
-          const missilesStr = await askQuestion(
-            'Do you want to launch nuclear missiles at China? If yes, how many?',
-            {
-              placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
-              validate: (val) => {
-                if (val === '') return 'Please enter a number (0 or more).';
-                const n = Number(val);
-                if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
-                if (n > 1000) return 'That is too many for this simulation (max 1000).';
-                return true;
-              },
+        setTimeout(() => {
+          displayMessage('The missile will hit San Francisco in 25 minutes.');
+
+          setTimeout(async () => {
+            // Ask with custom popup window instead of prompt()
+            const missilesStr = await askQuestion(
+              'Do you want to launch nuclear missiles at China? If yes, how many?',
+              {
+                placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
+                validate: (val) => {
+                  if (val === '') return 'Please enter a number (0 or more).';
+                  const n = Number(val);
+                  if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
+                  if (n > 1000) return 'That is too many for this simulation (max 1000).';
+                  return true;
+                },
+              }
+            );
+
+            if (missilesStr === null) {
+              displayMessage('You cancelled the launch decision.');
+              displayMessage('Game Over.');
+              return;
             }
-          );
 
-          if (missilesStr === null) {
-            displayMessage('You cancelled the launch decision.');
-            displayMessage('Game Over.');
-            return;
-          }
+            const missiles = Number(missilesStr);
+            if (missiles > 0) {
+              displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
 
-          const missiles = Number(missilesStr);
-          if (missiles > 0) {
-            displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
+              // Render the target cities horizontally
+              listCities(missiles);
 
-            // Render the target cities horizontally
-            listCities(missiles);
+              // Countdown to impact as horizontal ticks
+              countdownToImpact(25, () => {
+                // China launches double the player's missiles
+                const chinaMissiles = missiles * 2;
+                displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
+                displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
+                displayCities(chinaMissiles);
 
-            // Countdown to impact as horizontal ticks
-            countdownToImpact(25, () => {
-              // China launches double the player's missiles
-              const chinaMissiles = missiles * 2;
-              displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
-              displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
-              displayCities(chinaMissiles);
-
-              // Second countdown as horizontal ticks
-              countdownToImpact(20, () => {
-                const totalMissiles = missiles + chinaMissiles;
-                estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles });
+                // Second countdown as horizontal ticks
+                countdownToImpact(20, () => {
+                  const totalMissiles = missiles + chinaMissiles;
+                  estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles });
+                });
               });
-            });
-          } else {
-            displayMessage('You have chosen not to launch any missiles.');
-            displayMessage('Game Over.');
-          }
+            } else {
+              displayMessage('You have chosen not to launch any missiles.');
+              displayMessage('Game Over.');
+            }
+          }, 5000);
         }, 5000);
-      }, 5000);
+      }, 1000);
     }
 
     function listCities(missiles) {
