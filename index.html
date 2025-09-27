@@ -1,271 +1,107 @@
-<!DOCTYPE html>
+html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Wargame — Launch</title>
-  <style>
-    :root {
-      --bg: #0b1020;
-      --panel: #101833;
-      --text: #e7f0ff;
-      --accent: #43e5ff;
-      --muted: #7f8ca3;
-      --interval-ms: 250;
-    }
-
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; }
-    body {
-      background: radial-gradient(1000px 800px at 50% 20%, #101629 0, var(--bg) 50%, #04070f 100%);
-      color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-    }
-
-    .wrap {
-      width: min(1100px, 96vw);
-      padding: 16px;
-      display: grid;
-      grid-template-rows: auto auto 1fr;
-      gap: 16px;
-    }
-
-    header { display: flex; justify-content: space-between; align-items: center; }
-    h1 { margin: 0; font-size: clamp(18px, 2.8vw, 28px); color: #d9e6ff; }
-    .hint { color: var(--muted); font-size: 0.95rem; }
-
-    #countdown {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: clamp(12px, 2.4vw, 28px);
-      padding: 14px 18px;
-      border-radius: 12px;
-      background: linear-gradient(180deg, #0d1531 0%, #0a1128 100%);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.05), 0 10px 30px rgba(0,0,0,0.4);
-    }
-
-    #countdown .digit,
-    #countdown .go {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: clamp(42px, 7.5vw, 68px);
-      height: clamp(42px, 7.5vw, 68px);
-      border-radius: 10px;
-      background: #0f1736;
-      color: #98a7c4;
-      font-weight: 800;
-      font-size: clamp(22px, 5.8vw, 40px);
-      opacity: 0.35;
-      transition: transform 120ms ease, color 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 120ms ease;
-    }
-
-    #countdown .digit.active {
-      color: var(--accent);
-      background: #0c2140;
-      transform: scale(1.18);
-      opacity: 1;
-      box-shadow: 0 0 0 2px rgba(67,229,255,0.18), 0 0 26px rgba(67,229,255,0.35);
-      text-shadow: 0 0 12px rgba(67,229,255,0.6);
-    }
-
-    #countdown .go {
-      width: auto;
-      padding: 0 14px;
-      font-weight: 900;
-      color: #0b152e;
-      background: linear-gradient(180deg, #6bf0ff 0%, #44e5ff 100%);
-      box-shadow: 0 0 0 2px rgba(67,229,255,0.22), 0 0 30px rgba(67,229,255,0.5), inset 0 -6px 18px rgba(0,0,0,0.15);
-      opacity: 1;
-    }
-
-    #game {
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 14px;
-      background: linear-gradient(180deg, #0e1634 0%, #0a1127 100%);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), 0 18px 40px rgba(0,0,0,0.45);
-      min-height: 55vh;
-    }
-
-    #game-toolbar { display: flex; justify-content: space-between; gap: 8px; }
-    .btn {
-      border: 0;
-      border-radius: 10px;
-      padding: 14px 18px;
-      font-weight: 700;
-      font-size: 1rem;
-      color: #0c162f;
-      background: #d5e8ff;
-      cursor: pointer;
-    }
-    .btn.primary {
-      background: linear-gradient(180deg, #6bf0ff 0%, #44e5ff 100%);
-      color: #071021;
-    }
-
-    #stage {
-      display: grid;
-      align-items: center;
-      justify-items: center;
-      border-radius: 10px;
-      background: repeating-linear-gradient(-45deg, #0c1430 0 20px, #0a1128 20px 40px);
-      outline: 1px solid rgba(255,255,255,0.05);
-      min-height: 40vh;
-      color: #9fb3db;
-      font-weight: 600;
-    }
-
-    #startLater { display: none; }
-
-    /* Mobile tweaks */
-    @media (max-width: 600px) {
-      #countdown { flex-wrap: wrap; }
-      #game { min-height: 60vh; }
-    }
-
-    /* Modal */
-    #launchModal {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 999;
-    }
-    #launchModal .modal-box {
-      background: #101833;
-      padding: 20px;
-      border-radius: 12px;
-      text-align: center;
-      color: var(--text);
-    }
-    #launchModal .modal-box p { margin-bottom: 16px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text-Based Game</title>
+    <style>
+        body {
+            background-color: black;
+            color: green;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 20px;
+        }
+        #game {
+            white-space: pre-wrap;
+        }
+    </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>AS/400 Wargame — Launch Console</h1>
-      <div class="hint">Countdown runs at <strong>0.25 sec</strong> per count.</div>
-    </header>
+    <div id="game"></div>
+    <script>
+        const gameElement = document.getElementById('game');
 
-    <div id="countdown" aria-live="assertive"></div>
+        function displayMessage(message) {
+            gameElement.innerText += message + '\n';
+        }
 
-    <section id="game">
-      <div id="game-toolbar">
-        <div class="hint">Status: <span id="status">Waiting to launch…</span></div>
-        <div>
-          <button id="startLater" class="btn primary">Start Countdown</button>
-          <button id="abortBtn" class="btn">Abort</button>
-        </div>
-      </div>
-      <div id="stage"><div id="placeholder">Game not launched yet.</div></div>
-    </section>
-  </div>
+        function startGame() {
+            gameElement.innerText = ''; // Clear previous game messages
+            displayMessage('*** IBM AS400 Terminal ***');
+            displayMessage('A nuclear missile has been launched from China.');
+            setTimeout(() => {
+                displayMessage('The missile will hit San Francisco in 25 minutes.');
+                setTimeout(() => {
+                    const missiles = prompt('Do you want to launch nuclear missiles at China? If yes, how many?');
+                    if (missiles) {
+                        displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
+                        listCities(missiles);
+                        countdownToImpact(25, () => {
+                            displayMessage('China has launched 50 nuclear missiles at the USA, Canada, and Mexico.');
+                            displayMessage('The largest 50 cities in North America are the targets.');
+                            displayCities(50);
+                            countdownToImpact(20, estimateSurvivors);
+                        });
+                    } else {
+                        displayMessage('You have chosen not to launch any missiles.');
+                        displayMessage('Game Over.');
+                    }
+                }, 1000);
+            }, 10000);
+        }
 
-  <!-- Modal -->
-  <div id="launchModal">
-    <div class="modal-box">
-      <p>Ready to launch?</p>
-      <button id="yesBtn" class="btn primary">Yes</button>
-      <button id="noBtn" class="btn">No</button>
-    </div>
-  </div>
+        function listCities(missiles) {
+            const cities = [
+                "Beijing", "Shanghai", "Guangzhou", "Shenzhen", "Tianjin", "Chongqing", "Nanjing", "Wuhan", "Chengdu", "Xi'an",
+                "Pyongyang", "Hamhung", "Chongjin", "Nampo", "Wonsan", "Sinuiju", "Tanchon", "Kaechon", "Kaesong", "Sariwon"
+            ];
+            for (let i = 0; i < missiles; i++) {
+                displayMessage(cities[i % cities.length]);
+            }
+        }
 
-  <script>
-    // Show modal instead of confirm
-    function showLaunchModal() {
-      const modal = document.getElementById("launchModal");
-      modal.style.display = "flex";
-      document.getElementById("yesBtn").onclick = () => {
-        modal.style.display = "none";
-        queueCountdownThenLaunch();
-      };
-      document.getElementById("noBtn").onclick = () => {
-        modal.style.display = "none";
-        document.getElementById("startLater").style.display = "inline-flex";
-        setStatus("Launch canceled. Click “Start Countdown” to begin at any time.");
-      };
-    }
+        function displayCities(number) {
+            const cities = [
+                "Mexico City", "New York City", "Los Angeles", "Toronto", "Chicago", "Houston", "Havana", "Tijuana", 
+                "Montreal", "Phoenix", "Ecatepec de Morelos", "León", "Philadelphia", "Puebla", "Juárez", "Zapopan", 
+                "San Antonio", "Calgary", "Guadalajara", "San Diego", "Dallas", "Guatemala City", "Port-au-Prince", 
+                "Monterrey", "Tegucigalpa", "Edmonton", "Panama City", "Nezahualcóyotl", "Ottawa", "Managua", 
+                "Santo Domingo", "Austin", "Jacksonville", "San Jose", "Fort Worth", "Chihuahua", "Mérida", 
+                "Naucalpan", "Toluca", "Columbus", "Charlotte", "Cancún", "Indianapolis", "Saltillo", "Aguascalientes", 
+                "Hermosillo", "Mexicali", "Seattle", "Denver", "El Paso", "Detroit", "Culiacán", "Guadalupe", 
+                "Acapulco de Juárez", "Mississauga", "Boston", "Memphis", "Tlalnepantla", "New South Memphis", 
+                "North York", "Portland", "Winnipeg", "Oklahoma City", "Santiago de Querétaro", "Las Vegas", 
+                "Baltimore", "Coyoacán", "Santa María Chimalhuacán", "Torreón", "Washington, D.C.", "Milwaukee", 
+                "Vancouver", "Scarborough", "Morelia", "Reynosa", "New Kingston", "Tlaquepaque", "Tlalpan", 
+                "South Boston", "Albuquerque", "Santiago de Cuba", "Tuxtla", "Cuauhtémoc", "Tucson", "Nashville", 
+                "Québec", "San Salvador", "Fresno", "Hamilton", "Victoria de Durango", "Sacramento", "San Pedro Sula", 
+                "Toluca", "Ciudad López Mateos", "Cuautitlán Izcalli"
+            ];
+            for (let i = 0; i < number; i++) {
+                displayMessage(cities[i % cities.length]);
+            }
+        }
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", showLaunchModal, { once: true });
-    } else {
-      showLaunchModal();
-    }
+        function countdownToImpact(minutes, callback) {
+            const interval = setInterval(() => {
+                if (minutes > 0) {
+                    displayMessage(`Time until impact: ${minutes} minutes`);
+                    minutes--;
+                } else {
+                    clearInterval(interval);
+                    callback();
+                }
+            }, 1000);
+        }
 
-    function queueCountdownThenLaunch() {
-      runHorizontalCountdown(3, 1, 250).then(launchGame);
-    }
+        function estimateSurvivors() {
+            displayMessage('Estimating the number of people that will still be alive on Earth one year after a nuclear exchange between the United States and China...');
+            setTimeout(() => {
+                displayMessage('Estimated survivors: Approximately 500 million people.');
+            }, 2000);
+        }
 
-    function runHorizontalCountdown(from, to, intervalMs) {
-      const row = document.getElementById("countdown");
-      row.innerHTML = "";
-      row.style.display = "flex";
-      const nums = [];
-      const step = from <= to ? 1 : -1;
-      for (let n = from; step > 0 ? n <= to : n >= to; n += step) {
-        const span = document.createElement("span");
-        span.className = "digit";
-        span.textContent = String(n);
-        row.appendChild(span);
-        nums.push(span);
-      }
-      setStatus("Countdown initiated…");
-      return new Promise(resolve => {
-        let i = 0;
-        const tick = () => {
-          nums.forEach(d => d.classList.remove("active"));
-          if (i >= nums.length) {
-            row.innerHTML = "<span class='go'>LAUNCH</span>";
-            setTimeout(() => { row.style.display = "none"; resolve(); }, intervalMs);
-            return;
-          }
-          nums[i].classList.add("active");
-          i++;
-          setTimeout(tick, intervalMs);
-        };
-        tick();
-      });
-    }
-
-    function launchGame() {
-      setStatus("Launched. Initializing…");
-      const stage = document.getElementById("stage");
-      const ph = document.getElementById("placeholder");
-      ph.textContent = "";
-      const demo = document.createElement("div");
-      demo.style.padding = "12px 16px";
-      demo.style.background = "rgba(9, 19, 45, 0.7)";
-      demo.style.borderRadius = "10px";
-      demo.innerHTML = `<div style="font-weight:800;font-size:1.25rem;margin-bottom:6px;">Game Started</div>
-        <div>Insert your game canvas/UI here.</div>`;
-      stage.appendChild(demo);
-    }
-
-    function setStatus(text) {
-      document.getElementById("status").textContent = text;
-    }
-
-    document.getElementById("startLater").addEventListener("click", () => {
-      document.getElementById("startLater").style.display = "none";
-      queueCountdownThenLaunch();
-    });
-
-    document.getElementById("abortBtn").addEventListener("click", () => {
-      setStatus("Launch aborted.");
-      const row = document.getElementById("countdown");
-      row.style.display = "none";
-      row.innerHTML = "";
-    });
-  </script>
+        startGame();
+    </script>
 </body>
 </html>
