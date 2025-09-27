@@ -212,6 +212,9 @@
     const LETHALITY_K = 0.08;          // exponential drop per missile
     const SURVIVOR_FLOOR = 1_000_000;  // never go below 1M
 
+    // ====== NEW: Global cap for user missiles ======
+    const MAX_USER_MISSILES = 200;
+
     function formatNumber(n) {
       try { return n.toLocaleString(); } catch { return String(n); }
     }
@@ -317,171 +320,20 @@
       });
     }
 
-    // ---------- Game logic ----------
-    // CHANGED: Make async and ask to play before showing the missile narrative.
-    async function startGame() {
-      gameElement.innerText = ''; // Clear previous game messages
-      displayMessage('*** IBM AS400 Terminal ***');
-
-      // Ask if the player would like to play a game
-      const playAnswer = await askQuestion(
-        'Would you like to play a game? (yes/no)',
-        {
-          placeholder: 'yes or no',
-          validate: (val) => {
-            if (!val) return 'Please answer "yes" or "no".';
-            const v = val.trim().toLowerCase();
-            if (!['y', 'yes', 'n', 'no'].includes(v)) return 'Type "yes" or "no".';
-            return true;
-          },
-        }
-      );
-
-      if (playAnswer === null) {
-        displayMessage('Session cancelled.');
-        displayMessage('Goodbye.');
-        return;
-      }
-
-      const wantsToPlay = /^y(es)?$/i.test(playAnswer.trim());
-      if (!wantsToPlay) {
-        displayMessage('Understood. Maybe another time.');
-        displayMessage('Session ended.');
-        return;
-      }
-
-      // Proceed with the scenario only if the player agreed to play
-      displayMessage('Initializing scenario...');
-
-      setTimeout(() => {
-        // CHANGED: This line now appears only after the player says "yes"
-        displayMessage('China has launched its first missile.');
-
-        setTimeout(() => {
-          displayMessage('The missile will hit San Francisco in 25 minutes.');
-
-          setTimeout(async () => {
-            // Ask with custom popup window instead of prompt()
-            const missilesStr = await askQuestion(
-              'Do you want to launch nuclear missiles at China? If yes, how many?',
-              {
-                placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
-                validate: (val) => {
-                  if (val === '') return 'Please enter a number (0 or more).';
-                  const n = Number(val);
-                  if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
-                  if (n > 1000) return 'That is too many for this simulation (max 1000).';
-                  return true;
-                },
-              }
-            );
-
-            if (missilesStr === null) {
-              displayMessage('You cancelled the launch decision.');
-              displayMessage('Game Over.');
-              return;
-            }
-
-            const missiles = Number(missilesStr);
-            if (missiles > 0) {
-              displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
-
-              // Render the target cities horizontally
-              listCities(missiles);
-
-              // Countdown to impact as horizontal ticks
-              countdownToImpact(25, () => {
-                // China launches double the player's missiles
-                const chinaMissiles = missiles * 2;
-                displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
-                displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
-                displayCities(chinaMissiles);
-
-                // Second countdown as horizontal ticks
-                countdownToImpact(20, () => {
-                  const totalMissiles = missiles + chinaMissiles;
-                  estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles });
-                });
-              });
-            } else {
-              displayMessage('You have chosen not to launch any missiles.');
-              displayMessage('Game Over.');
-            }
-          }, 5000);
-        }, 5000);
-      }, 1000);
-    }
-
-    function listCities(missiles) {
-      const cities = [
-        'Beijing','Shanghai','Guangzhou','Shenzhen','Tianjin','Chongqing','Nanjing','Wuhan','Chengdu',"Xi'an",
-        'Pyongyang','Hamhung','Chongjin','Nampo','Wonsan','Sinuiju','Tanchon','Kaechon','Kaesong','Sariwon'
-      ];
-      const output = [];
-      for (let i = 0; i < missiles; i++) {
-        output.push(cities[i % cities.length]);
-      }
-      addInlineList(output); // horizontal, wrapping
-    }
-
-    function displayCities(number) {
-      const cities = [
-        'Mexico City','New York City','Los Angeles','Toronto','Chicago','Houston','Havana','Tijuana',
-        'Montreal','Phoenix','Ecatepec de Morelos','León','Philadelphia','Puebla','Juárez','Zapopan',
-        'San Antonio','Calgary','Guadalajara','San Diego','Dallas','Guatemala City','Port-au-Prince',
-        'Monterrey','Tegucigalpa','Edmonton','Panama City','Nezahualcóyotl','Ottawa','Managua',
-        'Santo Domingo','Austin','Jacksonville','San Jose','Fort Worth','Chihuahua','Mérida',
-        'Naucalpan','Toluca','Columbus','Charlotte','Cancún','Indianapolis','Saltillo','Aguascalientes',
-        'Hermosillo','Mexicali','Seattle','Denver','El Paso','Detroit','Culiacán','Guadalupe',
-        'Acapulco de Juárez','Mississauga','Boston','Memphis','Tlalnepantla','New South Memphis',
-        'North York','Portland','Winnipeg','Oklahoma City','Santiago de Querétaro','Las Vegas',
-        'Baltimore','Coyoacán','Santa María Chimalhuacán','Torreón','Washington, D.C.','Milwaukee',
-        'Vancouver','Scarborough','Morelia','Reynosa','New Kingston','Tlaquepaque','Tlalpan',
-        'South Boston','Albuquerque','Santiago de Cuba','Tuxtla','Cuauhtémoc','Tucson','Nashville',
-        'Québec','San Salvador','Fresno','Hamilton','Victoria de Durango','Sacramento','San Pedro Sula',
-        'Toluca','Ciudad López Mateos','Cuautitlán Izcalli'
-      ];
-      const output = [];
-      for (let i = 0; i < number; i++) {
-        output.push(cities[i % cities.length]);
-      }
-      addInlineList(output); // horizontal, wrapping
-    }
-
-    function countdownToImpact(minutes, callback) {
-      // One textual line for context (keeps the story readable)
-      displayMessage('Time until impact (minutes):');
-      // Horizontal ticking chips like: [25] [24] [23] ...
-      const list = addInlineList([], 'countdown');
-
-      const interval = setInterval(() => {
-        if (minutes > 0) {
-          const tick = document.createElement('span');
-          tick.className = 'item';
-          tick.textContent = String(minutes);
-          tick.setAttribute('aria-label', `Time until impact: ${minutes} minutes`);
-          list.appendChild(tick);
-          scrollToBottom();
-          minutes--;
-        } else {
-          clearInterval(interval);
-          callback();
-        }
-      }, 500); // pacing: 0.5s per "minute"
-    }
-
-    // UPDATED: survivors depend on total missiles (yours + China's)
-    function estimateSurvivors(totalMissiles, breakdown = { your: 0, china: 0 }) {
-      displayMessage('Estimating the number of people that will still be alive on Earth one year after the exchange...');
-      setTimeout(() => {
-        const survivors = survivorsFromMissiles(totalMissiles);
-        displayMessage(`Total missiles launched: ${breakdown.your} (you) + ${breakdown.china} (China) = ${totalMissiles}.`);
-        displayMessage(`Estimated survivors: ~${formatNumber(survivors)} people.`);
-      }, 2000);
-    }
-
-    // Start
-    startGame();
-  </script>
-</body>
-</html>
+    // ---------- Master city lists (200 each) ----------
+    // Side A (your targets): Top 200 cities in China (ordered by size: city proper / large urban areas).
+    // If you want strictly "urban area" ranking, say the word and I’ll swap in a Demographia/CityPopulation-based list.
+    const CHINA_TOP_200 = [
+      "Shanghai","Beijing","Chongqing","Guangzhou","Shenzhen","Tianjin","Chengdu","Wuhan","Xi'an","Hangzhou",
+      "Nanjing","Suzhou","Zhengzhou","Qingdao","Shenyang","Harbin","Changsha","Dongguan","Foshan","Ningbo",
+      "Wenzhou","Jinan","Dalian","Kunming","Hefei","Xiamen","Fuzhou","Shijiazhuang","Nanning","Taiyuan",
+      "Changchun","Ürümqi","Wuxi","Lanzhou","Nantong","Yantai","Tangshan","Zhongshan","Handan","Weifang",
+      "Huizhou","Zibo","Shaoxing","Luoyang","Yinchuan","Jinhua","Zhenjiang","Zhuhai","Jiaxing","Quanzhou",
+      "Guilin","Zhuzhou","Hengyang","Xiangyang","Yichang","Hohhot","Anyang","Xinxiang","Cangzhou","Liaocheng",
+      "Jining","Dezhou","Linyi","Taizhou (Zhejiang)","Taizhou (Jiangsu)","Maanshan","Huaian","Yangzhou","Yancheng",
+      "Jiujiang","Ganzhou","Nanchang","Xuzhou","Yan'an","Baoji","Ezhou","Huanggang","Huangshi","Jingzhou",
+      "Jingmen","Shiyan","Changzhou","Wuhu","Anqing","Bengbu","Fuyang","Huainan","Chuzhou","Bozhou",
+      "Suzhou (Anhui)","Wuhu County","Hefei County","Xuancheng","Chizhou","Tongling","Quzhou","Huzhou","Lishui",
+      "Wenzhou County","Ningde","Putian","Longyan","Sanming","Nanping","Zhangzhou","Shantou","Chaozhou",
+      "Jieyang","Meizhou","Qingyuan","Heyuan","Shanwei","Zhanjiang","Maoming","Yangjiang","Yunfu","Shaoguan",
+      "Zhongshan County","Heyuan County","Nanning County","Liuzhou","Guilin County","Beihai","Qinzhou","Fangchenggang",
