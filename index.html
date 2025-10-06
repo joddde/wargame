@@ -110,6 +110,8 @@
     .modal__message {
       margin: 0 0 10px 0;
       color: var(--fg);
+      min-height: 1.2em;
+      white-space: pre-wrap;
     }
 
     .modal__input {
@@ -202,6 +204,55 @@
   <script>
     const gameElement = document.getElementById('game');
 
+    /* ============================================================
+       TypeClick: WebAudio "key click" generator
+       - Short square-wave burst with envelope and downward sweep
+       - Skips sounds for elements inside countdown/timer/silent zones
+       ============================================================ */
+    const TypeClick = (() => {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      let enabled = false;
+      let minGap = 28;   // ms between clicks to avoid audio spam
+      let lastAt = 0;
+
+      // Unlock on user gesture (autoplay policy)
+      const unlock = () => { enabled = true; if (ctx.state === 'suspended') ctx.resume(); };
+      window.addEventListener('pointerdown', unlock, { once: true });
+      window.addEventListener('keydown', unlock, { once: true });
+
+      function isSilent(el) {
+        return !!(el && el.closest('.countdown, .timer, .no-sound, [data-silent="true"]'));
+      }
+
+      function play(forEl) {
+        if (!enabled) return;
+        if (isSilent(forEl)) return;
+
+        const now = performance.now();
+        if (now - lastAt < minGap) return;
+        lastAt = now;
+
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(2400, t);
+        osc.frequency.exponentialRampToValueAtTime(1600, t + 0.04);
+
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.linearRampToValueAtTime(0.35, t + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.05);
+      }
+
+      return { play, setMinGap(ms){ minGap=Math.max(0, ms|0);} };
+    })();
+
     const WORLD_POP = 8_000_000_000;
     const LETHALITY_K = 0.08;
     const SURVIVOR_FLOOR = 1_000_000;
@@ -221,12 +272,28 @@
       });
     }
 
+    /* ============================================================
+       Type text into an element with sound
+       ============================================================ */
+    async function typeText(el, text, { charDelay = 45, soundEvery = 1 } = {}) {
+      el.textContent = '';
+      for (let i = 0; i < text.length; i++) {
+        el.textContent += text[i];
+        if (i % soundEvery === 0) TypeClick.play(el);
+        scrollToBottom();
+        // tiny delay for natural pacing; keep short so game timing feels snappy
+        await new Promise(r => setTimeout(r, charDelay));
+      }
+    }
+
     function displayMessage(message) {
+      // Typed message with click per character
       const line = document.createElement('div');
       line.className = 'line';
-      line.textContent = message;
       gameElement.appendChild(line);
       scrollToBottom();
+      // fire-and-forget typing (doesn't block game timers/logic)
+      typeText(line, message, { charDelay: 35, soundEvery: 1 });
     }
 
     // NEW: Add cities to list with a delay between each (.1s per city)
@@ -235,12 +302,15 @@
       list.className = `inline-list ${extraClass}`.trim();
       gameElement.appendChild(list);
       scrollToBottom();
+      const isCountdown = list.classList.contains('countdown');
       for (const txt of items) {
         await new Promise(res => setTimeout(res, 100));
         const span = document.createElement('span');
         span.className = 'item';
         span.textContent = txt;
         list.appendChild(span);
+        // Play click for each revealed item unless this is a countdown/timer list
+        if (!isCountdown) TypeClick.play(span);
         scrollToBottom();
       }
       return list;
@@ -274,7 +344,10 @@
         let settled = false;
 
         function open() {
-          msgEl.textContent = message;
+          // Type the prompt message with a slightly faster cadence
+          msgEl.textContent = '';
+          typeText(msgEl, message, { charDelay: 25, soundEvery: 1 }); // non-blocking
+
           inputEl.value = '';
           inputEl.placeholder = placeholder;
           errorEl.textContent = '';
@@ -471,6 +544,7 @@
           tick.textContent = String(minutes);
           tick.setAttribute('aria-label', `Time until impact: ${minutes} minutes`);
           list.appendChild(tick);
+          // No click here by design: .countdown is a silent zone
           scrollToBottom();
           minutes--;
         } else {
