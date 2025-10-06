@@ -205,15 +205,13 @@
     const gameElement = document.getElementById('game');
 
     /* ============================================================
-       TypeClick: WebAudio "key click" generator
-       - Short square-wave burst with envelope and downward sweep
-       - Skips sounds for elements inside countdown/timer/silent zones
+       TypeClick: WebAudio "key click" generator (no audio files)
        ============================================================ */
     const TypeClick = (() => {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       const ctx = new AudioCtx();
       let enabled = false;
-      let minGap = 28;   // ms between clicks to avoid audio spam
+      let minGap = 28;   // ms between clicks
       let lastAt = 0;
 
       // Unlock on user gesture (autoplay policy)
@@ -237,6 +235,7 @@
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
 
+        // Sharp "terminal" click
         osc.type = 'square';
         osc.frequency.setValueAtTime(2400, t);
         osc.frequency.exponentialRampToValueAtTime(1600, t + 0.04);
@@ -252,6 +251,37 @@
 
       return { play, setMinGap(ms){ minGap=Math.max(0, ms|0);} };
     })();
+
+    /* ============================================================
+       Timer registry: lets us cancel all timeouts/intervals on restart
+       ============================================================ */
+    const T = (() => {
+      const timeouts = new Set();
+      const intervals = new Set();
+      return {
+        timeout(fn, ms) {
+          const id = setTimeout(() => { timeouts.delete(id); fn(); }, ms);
+          timeouts.add(id);
+          return id;
+        },
+        interval(fn, ms) {
+          const id = setInterval(fn, ms);
+          intervals.add(id);
+          return id;
+        },
+        clearAll() {
+          timeouts.forEach(id => clearTimeout(id));
+          intervals.forEach(id => clearInterval(id));
+          timeouts.clear(); intervals.clear();
+        }
+      };
+    })();
+
+    /* ============================================================
+       Global run id to cancel ongoing typing loops on restart
+       ============================================================ */
+    let RUN_ID = 0;
+    function resetRun() { RUN_ID++; }
 
     const WORLD_POP = 8_000_000_000;
     const LETHALITY_K = 0.08;
@@ -273,43 +303,44 @@
     }
 
     /* ============================================================
-       Type text into an element with sound
+       Type text into an element with sound (cancel-aware)
        ============================================================ */
     async function typeText(el, text, { charDelay = 45, soundEvery = 1 } = {}) {
+      const rid = RUN_ID;
       el.textContent = '';
       for (let i = 0; i < text.length; i++) {
+        if (rid !== RUN_ID) return;         // canceled by restart
         el.textContent += text[i];
         if (i % soundEvery === 0) TypeClick.play(el);
         scrollToBottom();
-        // tiny delay for natural pacing; keep short so game timing feels snappy
         await new Promise(r => setTimeout(r, charDelay));
       }
     }
 
     function displayMessage(message) {
-      // Typed message with click per character
+      // Typed message with click per character (non-blocking)
       const line = document.createElement('div');
       line.className = 'line';
       gameElement.appendChild(line);
       scrollToBottom();
-      // fire-and-forget typing (doesn't block game timers/logic)
       typeText(line, message, { charDelay: 35, soundEvery: 1 });
     }
 
-    // NEW: Add cities to list with a delay between each (.1s per city)
+    // Add list with delay per item; play click for each item (not for countdowns)
     async function addInlineListWithDelay(items, extraClass = '') {
       const list = document.createElement('div');
       list.className = `inline-list ${extraClass}`.trim();
       gameElement.appendChild(list);
       scrollToBottom();
       const isCountdown = list.classList.contains('countdown');
+      const rid = RUN_ID;
       for (const txt of items) {
+        if (rid !== RUN_ID) return list;    // canceled
         await new Promise(res => setTimeout(res, 100));
         const span = document.createElement('span');
         span.className = 'item';
         span.textContent = txt;
         list.appendChild(span);
-        // Play click for each revealed item unless this is a countdown/timer list
         if (!isCountdown) TypeClick.play(span);
         scrollToBottom();
       }
@@ -317,7 +348,6 @@
     }
 
     function addInlineList(items, extraClass = '') {
-      // Original, immediate version for countdown and other uses
       const list = document.createElement('div');
       list.className = `inline-list ${extraClass}`.trim();
       for (const txt of items) {
@@ -398,6 +428,38 @@
       });
     }
 
+    /* ============================================================
+       Restart button & reset utilities
+       ============================================================ */
+    function showRestart() {
+      // Avoid duplicates
+      const oldBtn = document.getElementById('restartBtn');
+      if (oldBtn) oldBtn.remove();
+
+      const btn = document.createElement('button');
+      btn.id = 'restartBtn';
+      btn.className = 'btn btn--primary';
+      btn.textContent = 'Restart Game';
+      btn.style.marginTop = '18px';
+      btn.style.display = 'block';
+
+      btn.onclick = () => {
+        // Full reset
+        T.clearAll();         // stop timers
+        resetRun();           // cancel pending typing
+        // Hide modal if it's open
+        const overlay = document.getElementById('modalOverlay');
+        if (overlay) overlay.style.display = 'none';
+        btn.remove();
+        gameElement.innerHTML = '';
+        startGame();
+      };
+
+      gameElement.appendChild(btn);
+      btn.focus();
+      scrollToBottom();
+    }
+
     async function startGame() {
       gameElement.innerText = '';
       displayMessage('*** IBM AS400 Terminal ***');
@@ -418,6 +480,7 @@
       if (playAnswer === null) {
         displayMessage('Session cancelled.');
         displayMessage('Goodbye.');
+        showRestart();
         return;
       }
 
@@ -425,18 +488,19 @@
       if (!wantsToPlay) {
         displayMessage('Understood. Maybe another time.');
         displayMessage('Session ended.');
+        showRestart();
         return;
       }
 
       displayMessage('Initializing scenario...');
 
-      setTimeout(() => {
+      T.timeout(() => {
         displayMessage('China has launched a nuclear missile.');
 
-        setTimeout(() => {
+        T.timeout(() => {
           displayMessage('The missile will hit San Francisco in 25 minutes.');
 
-          setTimeout(async () => {
+          T.timeout(async () => {
             const missilesStr = await askQuestion(
               'Do you want to launch nuclear missiles at China? If yes, how many?',
               {
@@ -454,6 +518,7 @@
             if (missilesStr === null) {
               displayMessage('You cancelled the launch decision.');
               displayMessage('Game Over.');
+              showRestart();
               return;
             }
 
@@ -467,7 +532,7 @@
                 const chinaMissiles = missiles * 2;
                 displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
 
-                setTimeout(async () => {
+                T.timeout(async () => {
                   displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
                   await displayCities(chinaMissiles);
 
@@ -475,12 +540,14 @@
                     // ADD 1 to China's missile count for the initial strike
                     const totalMissiles = missiles + chinaMissiles + 1;
                     estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles + 1 });
+                    T.timeout(showRestart, 2500); // Show restart after survivors are displayed
                   });
                 }, 2000); // 2 second pause here
               });
             } else {
               displayMessage('You have chosen not to launch any missiles.');
               displayMessage('Game Over.');
+              showRestart();
             }
           }, 5000);
         }, 5000);
@@ -537,7 +604,7 @@
       displayMessage('Time until impact (minutes):');
       const list = addInlineList([], 'countdown');
 
-      const interval = setInterval(() => {
+      const interval = T.interval(() => {
         if (minutes > 0) {
           const tick = document.createElement('span');
           tick.className = 'item';
@@ -548,6 +615,7 @@
           scrollToBottom();
           minutes--;
         } else {
+          // Stop our own interval and proceed
           clearInterval(interval);
           callback();
         }
@@ -556,13 +624,14 @@
 
     function estimateSurvivors(totalMissiles, breakdown = { your: 0, china: 0 }) {
       displayMessage('Estimating the number of people that will still be alive on Earth one year after the exchange...');
-      setTimeout(() => {
+      T.timeout(() => {
         const survivors = survivorsFromMissiles(totalMissiles);
         displayMessage(`Total missiles launched: ${breakdown.your} (you) + ${breakdown.china} (China) = ${totalMissiles}.`);
         displayMessage(`Estimated survivors: ~${formatNumber(survivors)} people.`);
       }, 2000);
     }
 
+    // Kick off the game
     startGame();
   </script>
 </body>
