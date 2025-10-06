@@ -1,495 +1,175 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Text-Based Game</title>
+  <meta charset="utf-8" />
+  <title>Text‑Based Game – Type Sound</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
-      --bg: #000;
-      --fg: #00ff65;
-      --dim: #00c04e;
-      --danger: #ff4d4d;
-      --overlay: rgba(0, 0, 0, 0.8);
-      --panel: #0f0f0f;
-      --border: #1f1f1f;
-      --accent: #00ff9c;
+      color-scheme: dark;
     }
-
     body {
-      background-color: var(--bg);
-      color: var(--fg);
-      font-family: 'Courier New', Courier, monospace;
-      padding: 20px;
-      margin: 0;
+      margin: 0; padding: 24px;
+      font: 16px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      background: #0b0f14; color: #d6e2f0;
     }
-
-    #game {
-      white-space: normal;
-      line-height: 1.4;
+    h1 { font-size: 16px; margin: 0 0 12px; color: #8fb3ff; }
+    .frame {
+      border: 1px solid #2b3a4a; border-radius: 8px; padding: 16px; background: #0e121a;
+      box-shadow: 0 0 0 1px #0e121a inset, 0 6px 24px rgba(0,0,0,.4);
     }
-
-    .line {
-      margin: 4px 0;
+    #output {
+      white-space: pre-wrap; /* keep your original newlines/formatting */
+      font-size: 15px;
+      letter-spacing: .2px;
+      min-height: 8rem;
     }
-
-    .inline-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px 10px;
-      margin: 6px 0 12px;
-      align-items: flex-start;
+    /* Example timer style (won't make sound due to .timer class) */
+    .timer {
+      margin-top: 12px; padding: 6px 8px; display: inline-block;
+      background: #111620; color: #8bd7a5; border: 1px solid #1b2533; border-radius: 4px;
+      font-weight: 600;
     }
-
-    .inline-list .item {
-      display: inline-block;
-      padding: 2px 6px;
-      border: 1px solid var(--border);
-      background: #0b0b0b;
-      color: var(--fg);
-      border-radius: 3px;
-      white-space: nowrap;
-      font-size: 14px;
-    }
-
-    .inline-list.countdown .item {
-      color: var(--dim);
-      border-style: dashed;
-      font-size: 12px;
-      padding: 1px 6px;
-    }
-
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: var(--overlay);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-
-    .modal {
-      width: min(520px, 92vw);
-      background: var(--panel);
-      border: 1px solid var(--border);
-      box-shadow: 0 0 0 2px #003b1f inset, 0 10px 30px rgba(0, 0, 0, 0.6);
-      border-radius: 6px;
-      overflow: hidden;
-      color: var(--fg);
-    }
-
-    .modal__header {
-      padding: 10px 14px;
-      background: #061d11;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .modal__title {
-      font-weight: bold;
-      letter-spacing: 0.5px;
-      color: var(--accent);
-    }
-
-    .modal__close {
-      color: var(--fg);
-      background: transparent;
-      border: none;
-      font-size: 18px;
-      cursor: pointer;
-      line-height: 1;
-    }
-
-    .modal__body {
-      padding: 16px 14px 6px;
-    }
-
-    .modal__message {
-      margin: 0 0 10px 0;
-      color: var(--fg);
-    }
-
-    .modal__input {
-      width: 100%;
-      background: #0b0b0b;
-      color: var(--fg);
-      border: 1px solid var(--border);
-      padding: 10px 12px;
-      border-radius: 4px;
-      font-family: inherit;
-      font-size: 16px;
-      outline: none;
-    }
-
-    .modal__input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(0, 255, 156, 0.2);
-    }
-
-    .modal__error {
-      color: var(--danger);
-      margin-top: 8px;
-      min-height: 1.2em;
-    }
-
-    .modal__footer {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-      padding: 12px 14px 14px;
-      border-top: 1px solid var(--border);
-    }
-
-    .btn {
-      appearance: none;
-      cursor: pointer;
-      font-family: inherit;
-      font-size: 14px;
-      letter-spacing: 0.4px;
-      border-radius: 4px;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      background: #0b0b0b;
-      color: var(--fg);
-    }
-
-    .btn--primary {
-      border-color: #015c38;
-      background: #06261a;
-      color: var(--accent);
-    }
-
-    .btn:focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
-
-    #game::after {
-      content: "▋";
-      margin-left: 6px;
-      animation: blink 1.1s steps(2, start) infinite;
-      color: var(--dim);
-    }
-    @keyframes blink {
-      to { visibility: hidden; }
+    .hint {
+      color: #7a8aa0; font-size: 13px; margin: 10px 0 0;
     }
   </style>
 </head>
 <body>
-  <div id="game" aria-live="polite"></div>
+  <h1>Text‑Based Game</h1>
+  <div class="frame">
+    <div id="output" aria-live="polite" aria-label="Rendered text output"></div>
 
-  <div class="modal-overlay" id="modalOverlay" aria-modal="true" role="dialog" aria-labelledby="modalTitle">
-    <div class="modal">
-      <div class="modal__header">
-        <div class="modal__title" id="modalTitle">SYSTEM QUERY</div>
-        <button class="modal__close" id="modalCloseBtn" aria-label="Cancel (Esc)">&times;</button>
-      </div>
-      <div class="modal__body">
-        <p class="modal__message" id="modalMessage"></p>
-        <input type="text" class="modal__input" id="modalInput" placeholder="" />
-        <div class="modal__error" id="modalError" aria-live="assertive"></div>
-      </div>
-      <div class="modal__footer">
-        <button class="btn" id="modalCancel">Cancel (Esc)</button>
-        <button class="btn btn--primary" id="modalOk">OK (Enter)</button>
-      </div>
-    </div>
+    <!-- Example timer (silenced automatically) -->
+    <div class="timer" id="countdown" aria-label="Countdown timer" data-silent="true">00:05</div>
+
+    <div class="hint">Click anywhere to start the rendering & sound. Timers are silent.</div>
   </div>
 
   <script>
-    const gameElement = document.getElementById('game');
+    /* ============================================================
+       WebAudio click generator (no external audio file required)
+       - Plays a short percussive click for each rendered character
+       - Skips elements in .timer, .no-sound, or [data-silent="true"]
+       ============================================================ */
+    const TypeClick = (() => {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      let enabled = false;
+      let minGap = 28;     // ms between clicks (prevents audio spam)
+      let lastAt = 0;
 
-    const WORLD_POP = 8_000_000_000;
-    const LETHALITY_K = 0.08;
-    const SURVIVOR_FLOOR = 1_000_000;
+      // Unlock audio on first user gesture
+      const unlock = () => { enabled = true; if (ctx.state === 'suspended') ctx.resume(); };
+      window.addEventListener('pointerdown', unlock, { once: true });
+      window.addEventListener('keydown', unlock, { once: true });
 
-    function formatNumber(n) {
-      try { return n.toLocaleString(); } catch { return String(n); }
-    }
-
-    function survivorsFromMissiles(totalMissiles) {
-      const est = Math.round(WORLD_POP * Math.exp(-LETHALITY_K * totalMissiles));
-      return Math.max(est, SURVIVOR_FLOOR);
-    }
-
-    function scrollToBottom() {
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      });
-    }
-
-    function displayMessage(message) {
-      const line = document.createElement('div');
-      line.className = 'line';
-      line.textContent = message;
-      gameElement.appendChild(line);
-      scrollToBottom();
-    }
-
-    // NEW: Add cities to list with a delay between each (.1s per city)
-    async function addInlineListWithDelay(items, extraClass = '') {
-      const list = document.createElement('div');
-      list.className = `inline-list ${extraClass}`.trim();
-      gameElement.appendChild(list);
-      scrollToBottom();
-      for (const txt of items) {
-        await new Promise(res => setTimeout(res, 100));
-        const span = document.createElement('span');
-        span.className = 'item';
-        span.textContent = txt;
-        list.appendChild(span);
-        scrollToBottom();
-      }
-      return list;
-    }
-
-    function addInlineList(items, extraClass = '') {
-      // Original, immediate version for countdown and other uses
-      const list = document.createElement('div');
-      list.className = `inline-list ${extraClass}`.trim();
-      for (const txt of items) {
-        const span = document.createElement('span');
-        span.className = 'item';
-        span.textContent = txt;
-        list.appendChild(span);
-      }
-      gameElement.appendChild(list);
-      scrollToBottom();
-      return list;
-    }
-
-    function askQuestion(message, { placeholder = '', validate = null } = {}) {
-      return new Promise((resolve) => {
-        const overlay = document.getElementById('modalOverlay');
-        const msgEl = document.getElementById('modalMessage');
-        const inputEl = document.getElementById('modalInput');
-        const errorEl = document.getElementById('modalError');
-        const okBtn = document.getElementById('modalOk');
-        const cancelBtn = document.getElementById('modalCancel');
-        const closeBtn = document.getElementById('modalCloseBtn');
-
-        let settled = false;
-
-        function open() {
-          msgEl.textContent = message;
-          inputEl.value = '';
-          inputEl.placeholder = placeholder;
-          errorEl.textContent = '';
-          overlay.style.display = 'flex';
-          setTimeout(() => inputEl.focus(), 0);
-          document.addEventListener('keydown', onKey);
-          okBtn.addEventListener('click', onOk);
-          cancelBtn.addEventListener('click', onCancel);
-          closeBtn.addEventListener('click', onCancel);
-        }
-
-        function close() {
-          overlay.style.display = 'none';
-          document.removeEventListener('keydown', onKey);
-          okBtn.removeEventListener('click', onOk);
-          cancelBtn.removeEventListener('click', onCancel);
-          closeBtn.removeEventListener('click', onCancel);
-        }
-
-        function onKey(e) {
-          if (e.key === 'Enter') onOk();
-          if (e.key === 'Escape') onCancel();
-        }
-
-        function onOk() {
-          if (settled) return;
-          const value = inputEl.value.trim();
-          if (typeof validate === 'function') {
-            const result = validate(value);
-            if (result !== true) {
-              errorEl.textContent = result || 'Invalid input.';
-              return;
-            }
-          }
-          settled = true;
-          close();
-          resolve(value);
-        }
-
-        function onCancel() {
-          if (settled) return;
-          settled = true;
-          close();
-          resolve(null);
-        }
-
-        open();
-      });
-    }
-
-    async function startGame() {
-      gameElement.innerText = '';
-      displayMessage('*** IBM AS400 Terminal ***');
-
-      const playAnswer = await askQuestion(
-        'Would you like to play a game? (yes/no)',
-        {
-          placeholder: 'yes or no',
-          validate: (val) => {
-            if (!val) return 'Please answer "yes" or "no".';
-            const v = val.trim().toLowerCase();
-            if (!['y', 'yes', 'n', 'no'].includes(v)) return 'Type "yes" or "no".';
-            return true;
-          },
-        }
-      );
-
-      if (playAnswer === null) {
-        displayMessage('Session cancelled.');
-        displayMessage('Goodbye.');
-        return;
+      function shouldSilenceFor(el) {
+        return el && el.closest('.timer, .no-sound, [data-silent="true"]');
       }
 
-      const wantsToPlay = /^y(es)?$/i.test(playAnswer.trim());
-      if (!wantsToPlay) {
-        displayMessage('Understood. Maybe another time.');
-        displayMessage('Session ended.');
-        return;
+      function click(forEl) {
+        if (!enabled) return;
+        if (shouldSilenceFor(forEl)) return;
+
+        const now = performance.now();
+        if (now - lastAt < minGap) return;
+        lastAt = now;
+
+        const t = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        // A sharp "key click": short square burst with envelope & slight downward sweep
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(2400, t);
+        osc.frequency.exponentialRampToValueAtTime(1600, t + 0.04);
+
+        gain.gain.setValueAtTime(0.0001, t);
+        gain.gain.linearRampToValueAtTime(0.35, t + 0.002);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.05);
       }
 
-      displayMessage('Initializing scenario...');
+      return {
+        play: click,
+        setMinGap(ms) { minGap = Math.max(0, ms|0); }
+      };
+    })();
 
-      setTimeout(() => {
-        displayMessage('China has launched a nuclear missile.');
+    /* ============================================================
+       Type text into an element, playing a click for each character
+       ============================================================ */
+    async function typeWithSound(el, text, {
+      charDelay = 45,   // ms between characters
+      soundEvery = 1    // 1 = every char; 2 = every other char, etc.
+    } = {}) {
+      el.textContent = '';
+      for (let i = 0; i < text.length; i++) {
+        el.textContent += text[i];
+        if (i % soundEvery === 0) TypeClick.play(el);
+        await new Promise(r => setTimeout(r, charDelay));
+      }
+    }
 
-        setTimeout(() => {
-          displayMessage('The missile will hit San Francisco in 25 minutes.');
-
-          setTimeout(async () => {
-            const missilesStr = await askQuestion(
-              'Do you want to launch nuclear missiles at China? If yes, how many?',
-              {
-                placeholder: 'Enter a non-negative integer (e.g., 0, 10, 50)',
-                validate: (val) => {
-                  if (val === '') return 'Please enter a number (0 or more).';
-                  const n = Number(val);
-                  if (!Number.isInteger(n) || n < 0) return 'Value must be a non-negative integer.';
-                  if (n > 50) return 'That is too many for this simulation (max 50).';
-                  return true;
-                },
+    /* ============================================================
+       OPTIONAL: Auto-sound for *any* incremental text rendering on
+       the page via MutationObserver (skips timers automatically).
+       Enable if you have your own typing logic elsewhere.
+       ============================================================ */
+    function attachTypingSound(root = document, {
+      ignore = '.timer, .no-sound, [data-silent="true"]'
+    } = {}) {
+      const obs = new MutationObserver(muts => {
+        for (const m of muts) {
+          if (m.type === 'characterData') {
+            const el = m.target.parentElement;
+            if (el && !el.closest(ignore)) TypeClick.play(el);
+          } else if (m.type === 'childList') {
+            m.addedNodes.forEach(node => {
+              if (node.nodeType === Node.TEXT_NODE) {
+                const el = node.parentElement;
+                if (el && !el.closest(ignore)) TypeClick.play(el);
               }
-            );
-
-            if (missilesStr === null) {
-              displayMessage('You cancelled the launch decision.');
-              displayMessage('Game Over.');
-              return;
-            }
-
-            const missiles = Number(missilesStr);
-            if (missiles > 0) {
-              displayMessage(`You have chosen to launch ${missiles} nuclear missiles at China.`);
-
-              await listCities(missiles);
-
-              countdownToImpact(25, () => {
-                const chinaMissiles = missiles * 2;
-                displayMessage(`China has launched ${chinaMissiles} nuclear missiles at the USA, Canada, and Mexico.`);
-
-                setTimeout(async () => {
-                  displayMessage(`The largest ${chinaMissiles} cities in North America are the targets.`);
-                  await displayCities(chinaMissiles);
-
-                  countdownToImpact(20, () => {
-                    // ADD 1 to China's missile count for the initial strike
-                    const totalMissiles = missiles + chinaMissiles + 1;
-                    estimateSurvivors(totalMissiles, { your: missiles, china: chinaMissiles + 1 });
-                  });
-                }, 2000); // 2 second pause here
-              });
-            } else {
-              displayMessage('You have chosen not to launch any missiles.');
-              displayMessage('Game Over.');
-            }
-          }, 5000);
-        }, 5000);
-      }, 1000);
-    }
-
-    // listCities and displayCities now use addInlineListWithDelay
-    async function listCities(missiles) {
-      const cities = [
-        'Beijing','Shanghai','Guangzhou','Shenzhen','Tianjin','Chongqing','Nanjing','Wuhan','Chengdu',"Xi'an",
-        'Pyongyang','Hamhung','Chongjin','Nampo','Wonsan','Sinuiju','Tanchon','Kaechon','Kaesong','Sariwon',
-        'Shenyang','Suzhou','Harbin','Qingdao','Dalian','Jinan','Hangzhou','Fuzhou','Zhengzhou','Changsha',
-        'Shijiazhuang','Ürümqi','Ningbo','Taiyuan','Xiamen','Changchun','Kunming','Hefei','Tangshan','Baotou',
-        'Yantai','Taiyuan','Luoyang','Handan','Nanchang','Xuzhou','Lanzhou','Huainan','Jilin','Zibo',
-        'Hohhot','Yinchuan','Baoji','Anshan','Weifang','Datong','Hengyang','Zhangjiakou','Linyi','Quanzhou',
-        'Liaoyang','Jiaozuo','Jiangmen','Shangqiu','Foshan','Dongguan','Maoming','Leshan','Jiujiang','Fuling',
-        'Panjin','Shaoyang','Jinzhou','Huangshi','Fuxin','Zhuzhou','Yueyang','Chenzhou','Haikou','Baoding',
-        'Bengbu','Jiamusi','Xiangtan','Sanmenxia','Tieling','Yanji','Jingzhou','Yuncheng','Chifeng','Zhangzhou',
-        'Yibin','Pingdingshan','Heze','Liaocheng','Jingmen','Yancheng','Yuxi','Mudanjiang','Yangzhou','Wuhu'
-      ];
-      const output = [];
-      for (let i = 0; i < missiles; i++) {
-        output.push(cities[i % cities.length]);
-      }
-      await addInlineListWithDelay(output);
-    }
-
-    async function displayCities(number) {
-      const cities = [
-        'Mexico City','New York City','Los Angeles','Toronto','Chicago','Houston','Havana','Tijuana',
-        'Montreal','Phoenix','Ecatepec de Morelos','León','Philadelphia','Puebla','Juárez','Zapopan',
-        'San Antonio','Calgary','Guadalajara','San Diego','Dallas','Guatemala City','Port-au-Prince',
-        'Monterrey','Tegucigalpa','Edmonton','Panama City','Nezahualcóyotl','Ottawa','Managua',
-        'Santo Domingo','Austin','Jacksonville','San Jose','Fort Worth','Chihuahua','Mérida',
-        'Naucalpan','Toluca','Columbus','Charlotte','Cancún','Indianapolis','Saltillo','Aguascalientes',
-        'Hermosillo','Mexicali','Seattle','Denver','El Paso','Detroit','Culiacán','Guadalupe',
-        'Acapulco de Juárez','Mississauga','Boston','Memphis','Tlalnepantla','New South Memphis',
-        'North York','Portland','Winnipeg','Oklahoma City','Santiago de Querétaro','Las Vegas',
-        'Baltimore','Coyoacán','Santa María Chimalhuacán','Torreón','Washington, D.C.','Milwaukee',
-        'Vancouver','Scarborough','Morelia','Reynosa','New Kingston','Tlaquepaque','Tlalpan',
-        'South Boston','Albuquerque','Santiago de Cuba','Tuxtla','Cuauhtémoc','Tucson','Nashville',
-        'Québec','San Salvador','Fresno','Hamilton','Victoria de Durango','Sacramento','San Pedro Sula',
-        'Toluca','Ciudad López Mateos','Cuautitlán Izcalli','St. Louis','Kansas City','Oakland',
-        'Minneapolis','San Juan'
-      ];
-      const output = [];
-      for (let i = 0; i < number; i++) {
-        output.push(cities[i % cities.length]);
-      }
-      await addInlineListWithDelay(output);
-    }
-
-    function countdownToImpact(minutes, callback) {
-      displayMessage('Time until impact (minutes):');
-      const list = addInlineList([], 'countdown');
-
-      const interval = setInterval(() => {
-        if (minutes > 0) {
-          const tick = document.createElement('span');
-          tick.className = 'item';
-          tick.textContent = String(minutes);
-          tick.setAttribute('aria-label', `Time until impact: ${minutes} minutes`);
-          list.appendChild(tick);
-          scrollToBottom();
-          minutes--;
-        } else {
-          clearInterval(interval);
-          callback();
+            });
+          }
         }
-      }, 500);
+      });
+      obs.observe(root, { subtree: true, characterData: true, childList: true });
+      return obs;
     }
+    // If you already have your own renderer, uncomment the line below:
+    // const stop = attachTypingSound();
 
-    function estimateSurvivors(totalMissiles, breakdown = { your: 0, china: 0 }) {
-      displayMessage('Estimating the number of people that will still be alive on Earth one year after the exchange...');
-      setTimeout(() => {
-        const survivors = survivorsFromMissiles(totalMissiles);
-        displayMessage(`Total missiles launched: ${breakdown.your} (you) + ${breakdown.china} (China) = ${totalMissiles}.`);
-        displayMessage(`Estimated survivors: ~${formatNumber(survivors)} people.`);
-      }, 2000);
-    }
+    /* ============================================================
+       Your original file content to render with sound
+       (kept verbatim, including escapes and newlines)
+       ============================================================ */
+    const SOURCE_TEXT = `# Text\\-Based Game 
+SYSTEM QUERY
+× 
+Cancel \\(Esc\\) OK \\(Enter\\) `;
 
-    startGame();
+    // Start: wait for a user gesture (audio policy), then type out
+    const outputEl = document.getElementById('output');
+    window.addEventListener('pointerdown', () => {
+      // Begin typing once, on first interaction
+      typeWithSound(outputEl, SOURCE_TEXT, { charDelay: 45, soundEvery: 1 });
+    }, { once: true });
+
+    /* ---- (Demo) Silent timer: updates without triggering clicks ---- */
+    (function demoTimer() {
+      const tEl = document.getElementById('countdown'); // marked data-silent + .timer
+      let s = 5;
+      const iid = setInterval(() => {
+        s--;
+        tEl.textContent = `00:0${s}`;
+        if (s <= 0) { clearInterval(iid); tEl.textContent = '00:00'; }
+      }, 1000);
+    })();
   </script>
 </body>
 </html>
